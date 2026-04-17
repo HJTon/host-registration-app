@@ -133,8 +133,8 @@ export default function VoiceInput({
             disabled={isTidying}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
               isListening
-                ? 'bg-red-500 text-white animate-pulse'
-                : 'bg-white border-2 border-primary text-primary hover:bg-secondary'
+                ? 'bg-danger text-white animate-pulse'
+                : 'bg-paper border-2 border-primary text-primary hover:bg-brand-green-soft'
             } disabled:opacity-40`}
           >
             <span className="text-base">{isListening ? '⏹' : '🎙️'}</span>
@@ -145,7 +145,7 @@ export default function VoiceInput({
 
       {/* Live interim transcript */}
       {interimText && (
-        <p className="text-xs text-text-secondary italic mb-1 px-1">{interimText}…</p>
+        <p className="text-xs text-ink-soft italic mb-1 px-1">{interimText}…</p>
       )}
 
       {/* Textarea */}
@@ -159,7 +159,7 @@ export default function VoiceInput({
             ? 'Tap the mic to speak, or type here…'
             : (placeholder ?? 'Type your answer here…')
         }
-        className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
+        className="w-full border border-line rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-brand-green resize-y"
       />
 
       {/* Char counter */}

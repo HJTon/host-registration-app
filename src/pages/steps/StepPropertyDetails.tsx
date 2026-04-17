@@ -53,7 +53,7 @@ export default function StepPropertyDetails({ data, errors: _errors, onChange }:
   return (
     <div className="space-y-5">
       <div>
-        <label className="block text-sm font-medium text-text-primary mb-1" htmlFor="propertySize">
+        <label className="block text-sm font-medium text-ink mb-1" htmlFor="propertySize">
           {sizeLabel(data.propertyType)}
         </label>
         <input
@@ -62,12 +62,12 @@ export default function StepPropertyDetails({ data, errors: _errors, onChange }:
           value={data.propertySize}
           onChange={e => onChange('propertySize', e.target.value)}
           placeholder={sizePlaceholder(data.propertyType)}
-          className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[52px]"
+          className="w-full border border-line rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-brand-green min-h-[52px]"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-text-primary mb-1" htmlFor="yearEstablished">
+        <label className="block text-sm font-medium text-ink mb-1" htmlFor="yearEstablished">
           {establishedLabel(data.propertyType)}
         </label>
         <input
@@ -76,13 +76,13 @@ export default function StepPropertyDetails({ data, errors: _errors, onChange }:
           value={data.yearEstablished}
           onChange={e => onChange('yearEstablished', e.target.value)}
           placeholder={establishedPlaceholder(data.propertyType)}
-          className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[52px]"
+          className="w-full border border-line rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-brand-green min-h-[52px]"
         />
       </div>
 
       {isBuild && (
         <div>
-          <label className="block text-sm font-medium text-text-primary mb-1" htmlFor="buildOrigin">
+          <label className="block text-sm font-medium text-ink mb-1" htmlFor="buildOrigin">
             Did you build, renovate or purchase as is?
           </label>
           <input
@@ -91,18 +91,18 @@ export default function StepPropertyDetails({ data, errors: _errors, onChange }:
             value={data.buildOrigin}
             onChange={e => onChange('buildOrigin', e.target.value)}
             placeholder="e.g. New build completed 2022; Renovated 2019; Purchased as is"
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[52px]"
+            className="w-full border border-line rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-brand-green min-h-[52px]"
           />
         </div>
       )}
 
       {isFarmOrLifestyle && (
         <div>
-          <label className="block text-sm font-medium text-text-primary mb-1" htmlFor="sustainabilityFeatures">
+          <label className="block text-sm font-medium text-ink mb-1" htmlFor="sustainabilityFeatures">
             Other elements around ownership, management, cultural, or historical significance you'd like to share{' '}
-            <span className="text-text-secondary font-normal">(optional)</span>
+            <span className="text-ink-soft font-normal">(optional)</span>
           </label>
-          <p className="text-xs text-text-secondary mb-2">
+          <p className="text-xs text-ink-soft mb-2">
             E.g. Farm Taranaki is a charitable trust focused on demonstration and education to ensure the viability of dairy farming.
           </p>
           <VoiceInput

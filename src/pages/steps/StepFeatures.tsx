@@ -2,6 +2,8 @@ import type { FormData } from '../../types/form';
 import type { ChangeHandler } from '../FormPage';
 import { getPropertyCategory } from '../../types/form';
 import VoiceInput from '../../components/VoiceInput';
+import { Divider, Field, Textarea } from '../../components/ui';
+import { getCategoryTheme } from '../../utils/category';
 
 interface Props {
   data: FormData;
@@ -74,10 +76,14 @@ function CheckboxGroup({
   group,
   selected,
   onChange,
+  accent,
+  soft,
 }: {
   group: FeatureGroup;
   selected: string[];
   onChange: (values: string[]) => void;
+  accent: string;
+  soft: string;
 }) {
   const toggle = (value: string) => {
     onChange(
@@ -89,22 +95,52 @@ function CheckboxGroup({
 
   return (
     <div>
-      <p className="text-sm font-semibold text-text-primary mb-2">{group.title}</p>
+      <Divider label={group.title} className="mb-3" />
       <div className="space-y-1.5">
-        {group.options.map(({ value, label }) => (
-          <label
-            key={value}
-            className="flex items-center gap-3 px-3 py-2.5 border border-gray-200 rounded-lg cursor-pointer hover:bg-surface transition-colors min-h-[44px]"
-          >
-            <input
-              type="checkbox"
-              checked={selected.includes(value)}
-              onChange={() => toggle(value)}
-              className="w-5 h-5 accent-primary shrink-0"
-            />
-            <span className="text-sm text-text-primary leading-snug">{label}</span>
-          </label>
-        ))}
+        {group.options.map(({ value, label }) => {
+          const checked = selected.includes(value);
+          return (
+            <label
+              key={value}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-[10px] cursor-pointer transition-colors min-h-[44px] border"
+              style={{
+                borderColor: checked ? accent : 'var(--color-line)',
+                backgroundColor: checked ? soft : 'var(--color-paper)',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => toggle(value)}
+                className="sr-only"
+              />
+              <span
+                aria-hidden
+                className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-[6px] transition-colors"
+                style={{
+                  backgroundColor: checked ? accent : 'transparent',
+                  border: checked ? `1.5px solid ${accent}` : '1.5px solid var(--color-line)',
+                  color: '#fff',
+                }}
+              >
+                {checked && (
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                )}
+              </span>
+              <span
+                className="text-[14px] leading-snug"
+                style={{
+                  color: checked ? 'var(--color-brand-green-ink)' : 'var(--color-ink)',
+                  fontWeight: checked ? 600 : 400,
+                }}
+              >
+                {label}
+              </span>
+            </label>
+          );
+        })}
       </div>
     </div>
   );
@@ -166,10 +202,10 @@ function TourTypeFeatures({ data, onChange }: { data: FormData; onChange: Change
   return (
     <div className="space-y-6">
       <div>
-        <label className="block text-sm font-medium text-text-primary mb-2" htmlFor="featuresNotes">
+        <label className="block text-sm font-medium text-ink mb-2" htmlFor="featuresNotes">
           Sustainability features
         </label>
-        <div className="text-xs text-text-secondary mb-3 space-y-2">
+        <div className="text-xs text-ink-soft mb-3 space-y-2">
           <p>{introText}</p>
           <p className="italic">{exampleText}</p>
           <ul className="list-disc list-inside space-y-0.5">
@@ -183,15 +219,15 @@ function TourTypeFeatures({ data, onChange }: { data: FormData; onChange: Change
           value={data.featuresNotes}
           onChange={e => onChange('featuresNotes', e.target.value)}
           rows={8}
-          className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
+          className="w-full border border-line rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-brand-green resize-y"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-text-primary mb-1" htmlFor="briefDescription">
-          {briefDesc.label} <span className="text-text-secondary font-normal">(optional)</span>
+        <label className="block text-sm font-medium text-ink mb-1" htmlFor="briefDescription">
+          {briefDesc.label} <span className="text-ink-soft font-normal">(optional)</span>
         </label>
-        <p className="text-xs text-text-secondary mb-2">
+        <p className="text-xs text-ink-soft mb-2">
           {briefDesc.helpText}
         </p>
         <VoiceInput
@@ -208,6 +244,7 @@ function TourTypeFeatures({ data, onChange }: { data: FormData; onChange: Change
 
 export default function StepFeatures({ data, errors: _errors, onChange }: Props) {
   const category = getPropertyCategory(data.propertyType);
+  const theme = getCategoryTheme(data.propertyType);
 
   // Builds, farms, and lifestyle blocks use a text-based flow
   if (category === 'build' || category === 'farm' || category === 'lifestyle-block') {
@@ -219,7 +256,7 @@ export default function StepFeatures({ data, errors: _errors, onChange }: Props)
 
   return (
     <div className="space-y-6">
-      <p className="text-text-secondary text-sm">
+      <p className="text-ink-soft text-[14px]">
         What features does your property have? Tick everything that applies.
       </p>
 
@@ -229,40 +266,37 @@ export default function StepFeatures({ data, errors: _errors, onChange }: Props)
           group={group}
           selected={data.features}
           onChange={values => onChange('features', values)}
+          accent={theme.accent}
+          soft={theme.soft}
         />
       ))}
 
-      <div>
-        <label className="block text-sm font-medium text-text-primary mb-1" htmlFor="featuresNotes">
-          Additional details <span className="text-text-secondary font-normal">(optional)</span>
-        </label>
-        <p className="text-xs text-text-secondary mb-2">
-          Provide specifics and additional details for the above features. E.g.
-          <br />In-ground worm tunnel.
-          <br />Three highline browns, two muscovey ducks.
-          <br />DIY / upcycled fish bench, wood storage, outdoor bath, garden shed, garden bed edging.
-          <br />Water collection off house roof, gravity feed to dry garden beds.
-          <br />Home production of fruit preserves, pickles, preserved eggs and meat.
-          <br />Garden beds include hugelkultur, no-dig.
-          <br />Permaculture principles throughout.
-          <br />Uncommon variety of lime — finger lime — great garnish & flavour.
-        </p>
-        <textarea
+      <Field
+        label="Additional details"
+        htmlFor="featuresNotes"
+        optional
+        hint={
+          <>
+            Provide specifics and additional details for the above features. E.g. in-ground
+            worm tunnel, three highline browns, DIY upcycled fish bench, water collection
+            off house roof, fruit preserves, hugelkultur beds, finger-lime tree.
+          </>
+        }
+      >
+        <Textarea
           id="featuresNotes"
           value={data.featuresNotes}
           onChange={e => onChange('featuresNotes', e.target.value)}
           rows={6}
-          className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
         />
-      </div>
+      </Field>
 
-      <div>
-        <label className="block text-sm font-medium text-text-primary mb-1" htmlFor="briefDescription">
-          {briefDesc.label} <span className="text-text-secondary font-normal">(optional)</span>
-        </label>
-        <p className="text-xs text-text-secondary mb-2">
-          {briefDesc.helpText}
-        </p>
+      <Field
+        label={briefDesc.label}
+        htmlFor="briefDescription"
+        optional
+        hint={briefDesc.helpText}
+      >
         <VoiceInput
           id="briefDescription"
           value={data.briefDescription}
@@ -270,7 +304,7 @@ export default function StepFeatures({ data, errors: _errors, onChange }: Props)
           rows={3}
           fieldHint={briefDesc.fieldHint}
         />
-      </div>
+      </Field>
     </div>
   );
 }

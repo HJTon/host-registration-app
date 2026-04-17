@@ -1,13 +1,103 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────
+   Self-hosted fonts — Trails brand
+   Barlow Condensed (display) + Inter Variable (body)
+   ───────────────────────────────────────────────────────────── */
+@import "@fontsource/barlow-condensed/400.css";
+@import "@fontsource/barlow-condensed/600.css";
+@import "@fontsource/barlow-condensed/700.css";
+@import "@fontsource-variable/inter";
+
 @theme {
-  --color-primary: #2D6A4F;
-  --color-primary-light: #52B788;
-  --color-primary-dark: #1B4332;
-  --color-secondary: #B7E4C7;
-  --color-accent: #D4A373;
-  --color-background: #FFFFFF;
-  --color-surface: #F5F5F0;
-  --color-text-primary: #2D3436;
-  --color-text-secondary: #636E72;
+  /* ── Typography ─────────────────────────────────────────── */
+  --font-display: "Barlow Condensed", Impact, sans-serif;
+  --font-body: "Inter Variable", "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* ── Trails canonical brand colours ────────────────────── */
+  --color-brand-green: #65B32E;
+  --color-brand-green-deep: #1F6B2E;
+  --color-brand-green-soft: #E9F3DC;
+  --color-brand-green-ink: #12351C;
+
+  --color-cream: #F5EFD9;
+  --color-cream-soft: #FAF7EE;
+  --color-paper: #FFFFFF;
+  --color-ink: #1C2A1A;
+  --color-ink-soft: #4A564A;
+  --color-ink-muted: #8A958A;
+  --color-line: #E7E2D2;
+
+  /* Category accents — one per trail type */
+  --color-backyards: #4C9A2A;
+  --color-backyards-soft: #DCEED0;
+  --color-builds: #B64A2A;
+  --color-builds-soft: #F3D9CC;
+  --color-farms: #C98A1D;
+  --color-farms-soft: #F5E6C9;
+
+  --color-danger: #B43838;
+  --color-star: #E2A100;
+
+  /* ── Back-compat aliases (existing Tailwind classes) ───── */
+  --color-primary: #65B32E;         /* brandGreen */
+  --color-primary-light: #E9F3DC;   /* brandGreenSoft */
+  --color-primary-dark: #1F6B2E;    /* brandGreenDeep */
+  --color-secondary: #E9F3DC;       /* soft tint */
+  --color-accent: #C98A1D;          /* farms ochre */
+  --color-background: #FFFFFF;      /* paper */
+  --color-surface: #FAF7EE;         /* creamSoft — page bg */
+  --color-text-primary: #1C2A1A;    /* ink */
+  --color-text-secondary: #4A564A;  /* inkSoft */
+
+  /* ── Radii, shadows ─────────────────────────────────────── */
+  --radius-trail: 14px;
+  --radius-trail-lg: 22px;
+
+  --shadow-card: 0 1px 2px rgba(28, 42, 26, 0.04), 0 6px 18px rgba(28, 42, 26, 0.06);
+  --shadow-hero: 0 2px 6px rgba(28, 42, 26, 0.05), 0 18px 40px rgba(28, 42, 26, 0.10);
+}
+
+/* ── Global base ────────────────────────────────────────────── */
+html,
+body {
+  background: var(--color-cream-soft);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Trails display utility — use on headings, stats, wordmarks */
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+/* Eyebrow / label caps — 11 px tracked caps */
+.eyebrow {
+  font-family: var(--font-body);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+}
+
+/* Meta text */
+.meta {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-ink-muted);
+}
+
+/* Card shadow helpers */
+.shadow-card {
+  box-shadow: var(--shadow-card);
+}
+.shadow-hero {
+  box-shadow: var(--shadow-hero);
 }

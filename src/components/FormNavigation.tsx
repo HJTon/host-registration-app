@@ -1,3 +1,5 @@
+import { Btn } from './ui';
+
 interface FormNavigationProps {
   currentStep: number;
   totalSteps: number;
@@ -20,31 +22,25 @@ export default function FormNavigation({
   return (
     <div className="flex gap-3 mt-8">
       {currentStep > 1 && (
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex-1 border-2 border-primary text-primary rounded-xl px-6 py-4 text-base font-semibold min-h-[52px] hover:bg-secondary transition-colors"
-        >
+        <Btn variant="ghost" size="lg" fullWidth onClick={onBack} type="button">
           Back
-        </button>
+        </Btn>
       )}
       {isLastStep ? (
-        <button
+        <Btn
+          variant="primary"
+          size="lg"
+          fullWidth
           type="button"
           onClick={onSubmit}
           disabled={isSubmitting}
-          className="flex-1 bg-primary text-white rounded-xl px-6 py-4 text-base font-semibold min-h-[52px] hover:bg-primary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {isSubmitting ? 'Submitting…' : 'Submit Registration'}
-        </button>
+          {isSubmitting ? 'Submitting…' : 'Submit registration'}
+        </Btn>
       ) : (
-        <button
-          type="button"
-          onClick={onNext}
-          className="flex-1 bg-primary text-white rounded-xl px-6 py-4 text-base font-semibold min-h-[52px] hover:bg-primary-dark transition-colors"
-        >
-          Next
-        </button>
+        <Btn variant="primary" size="lg" fullWidth type="button" onClick={onNext}>
+          Continue
+        </Btn>
       )}
     </div>
   );

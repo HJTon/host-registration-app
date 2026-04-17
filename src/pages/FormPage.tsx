@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { FormData, TimeSlotKey, SlotState } from '../types/form';
 import { getInitialFormData, isTourType } from '../types/form';
 import { saveDraft, loadDraft, clearDraft, generateSubmissionId, saveSubmission, getSubmissionById } from '../utils/storage';
 import { validateStep } from '../utils/validation';
 import StepIndicator from '../components/StepIndicator';
 import FormNavigation from '../components/FormNavigation';
+import { BrandHeader, Card, CategoryChip } from '../components/ui';
+import { getCategoryTheme, getTrailCategory } from '../utils/category';
 import StepEmail from './steps/StepEmail';
 import StepContact from './steps/StepContact';
 import StepAddress from './steps/StepAddress';
@@ -29,12 +31,35 @@ function getStepTitles(propertyType: string): string[] {
     'Property type',
     'Property details',
     'Features',
-    isTour ? 'Dates & Times' : 'Open hours',
+    isTour ? 'Dates & times' : 'Open hours',
     'Your description',
     'Visitor access',
     'Activities',
     'Review & submit',
   ];
+}
+
+/**
+ * Māori eyebrow phrase shown above each step heading — sparse, selective use
+ * per the Trails brand. One phrase per step, falling back to empty when
+ * no natural te reo label exists.
+ */
+function getStepEyebrow(step: number, propertyType: string): string {
+  const isTour = isTourType(propertyType);
+  const eyebrows: Record<number, string> = {
+    1: 'Īmēra',
+    2: 'Taku whare',
+    3: 'Wāhi',
+    4: 'Momo whare',
+    5: 'Taipitopito',
+    6: 'Ātea',
+    7: isTour ? 'Rā · Tour days' : 'Rā · Open days',
+    8: 'Kōrero',
+    9: 'Haereere',
+    10: 'Mahi',
+    11: 'Tirohanga',
+  };
+  return eyebrows[step] ?? '';
 }
 
 export type ChangeHandler = <K extends keyof FormData>(field: K, value: FormData[K]) => void;
@@ -149,6 +174,13 @@ export default function FormPage() {
         ? '/.netlify/functions/update-host-submission'
         : '/.netlify/functions/submit-host-form';
 
+      // When editing, include the original property type so the server knows
+      // which tab to search — the user may have changed type during editing
+      if (editId) {
+        const originalPropertyType = getSubmissionById(editId)?.propertyType ?? '';
+        if (originalPropertyType) (dataToSend as Record<string, unknown>).originalPropertyType = originalPropertyType;
+      }
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -182,40 +214,50 @@ export default function FormPage() {
   };
 
   const commonProps = { data: formData, errors, onChange: handleChange };
+  const theme = getCategoryTheme(formData.propertyType);
+  const hasCategory = !!getTrailCategory(formData.propertyType);
+  const eyebrow = getStepEyebrow(currentStep, formData.propertyType);
+  const stepTitle = getStepTitles(formData.propertyType)[currentStep - 1];
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 pb-12">
-      {/* Header */}
-      <div className="mb-2 flex items-center justify-between min-h-[28px]">
-        <div className="flex items-center gap-3">
-          <Link
-            to="/"
-            className="text-text-secondary hover:text-primary transition-colors"
-            aria-label="Back to home"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-          </Link>
-          <h1 className="text-xl font-bold text-text-primary">
-            {getStepTitles(formData.propertyType)[currentStep - 1]}
-          </h1>
-        </div>
-        {showSaved && (
-          <span className="text-sm text-primary flex items-center gap-1 shrink-0">
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            Saved
-          </span>
+    <div className="max-w-2xl mx-auto px-4 pb-12">
+      <BrandHeader
+        backTo="/"
+        rightSlot={
+          <div className="flex items-center gap-2">
+            {hasCategory && <CategoryChip propertyType={formData.propertyType} size="sm" />}
+            <span
+              className={`meta flex items-center gap-1 shrink-0 transition-opacity ${showSaved ? 'opacity-100' : 'opacity-0'}`}
+              style={{ color: theme.accent }}
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Draft saved
+            </span>
+          </div>
+        }
+      />
+
+      {/* Step heading */}
+      <div className="mt-2 mb-4">
+        {eyebrow && (
+          <p className="italic text-[12px] text-ink-soft mb-0.5">{eyebrow}</p>
         )}
+        <h1 className="font-display text-[26px] sm:text-[30px] leading-[1.05] text-brand-green-deep">
+          {stepTitle}
+        </h1>
       </div>
 
-      <StepIndicator currentStep={currentStep} totalSteps={TOTAL_STEPS} onNavigate={handleNavigate} />
+      <StepIndicator
+        currentStep={currentStep}
+        totalSteps={TOTAL_STEPS}
+        onNavigate={handleNavigate}
+        propertyType={formData.propertyType}
+      />
 
       {/* Step content */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <Card className="p-5 sm:p-6">
         {currentStep === 1 && <StepEmail {...commonProps} />}
         {currentStep === 2 && <StepContact {...commonProps} />}
         {currentStep === 3 && <StepAddress {...commonProps} />}
@@ -241,15 +283,18 @@ export default function FormPage() {
             submitError={submitError}
           />
         )}
-      </div>
+      </Card>
 
       {isSubmitting && (
         <div className="mt-4 px-1">
-          <p className="text-sm text-text-secondary mb-2 text-center">{submitStatus}</p>
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <p className="meta text-center mb-2">{submitStatus}</p>
+          <div className="w-full bg-line rounded-full h-1.5 overflow-hidden">
             <div
-              className="bg-primary h-2 rounded-full transition-all duration-500"
-              style={{ width: `${submitProgress}%` }}
+              className="h-1.5 rounded-full transition-[width] duration-500"
+              style={{
+                width: `${submitProgress}%`,
+                backgroundColor: theme.accent,
+              }}
             />
           </div>
         </div>

@@ -10,9 +10,9 @@ interface Props {
 }
 
 const KID_FRIENDLY_OPTIONS = [
-  { value: 'yes', label: "Yes — we'd love to be promoted as Kid Friendly" },
+  { value: 'yes', label: "Yes — we'd love to be promoted as having kid activities" },
   { value: 'maybe', label: 'Maybe — open to the idea' },
-  { value: 'no', label: "No — not focusing on children's activities" },
+  { value: 'no', label: "No — we don't have specific activities for kids" },
 ];
 
 export default function StepActivities({ data, errors: _errors, onChange }: Props) {
@@ -22,12 +22,12 @@ export default function StepActivities({ data, errors: _errors, onChange }: Prop
 
   return (
     <div className="space-y-6">
-      <p className="text-text-secondary text-sm">All optional — skip what doesn't apply.</p>
+      <p className="text-ink-soft text-sm">All optional — skip what doesn't apply.</p>
 
       {isBackyard && (
         <div>
-          <p className="text-sm font-medium text-text-primary mb-3">
-            Are you interested in being promoted as a 'Kid Friendly' property and running activities for children?
+          <p className="text-sm font-medium text-ink mb-3">
+            Are you interested in being promoted as having kid activities?
           </p>
           <div className="space-y-2">
             {KID_FRIENDLY_OPTIONS.map(({ value, label }) => (
@@ -35,8 +35,8 @@ export default function StepActivities({ data, errors: _errors, onChange }: Prop
                 key={value}
                 className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-colors min-h-[52px] ${
                   data.kidFriendly === value
-                    ? 'border-primary bg-secondary/30'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-primary bg-brand-green-soft/30'
+                    : 'border-line hover:border-line'
                 }`}
               >
                 <input
@@ -45,9 +45,9 @@ export default function StepActivities({ data, errors: _errors, onChange }: Prop
                   value={value}
                   checked={data.kidFriendly === value}
                   onChange={() => onChange('kidFriendly', value)}
-                  className="w-5 h-5 accent-primary shrink-0"
+                  className="w-5 h-5 accent-brand-green shrink-0"
                 />
-                <span className="text-sm text-text-primary">{label}</span>
+                <span className="text-sm text-ink">{label}</span>
               </label>
             ))}
           </div>
@@ -56,10 +56,10 @@ export default function StepActivities({ data, errors: _errors, onChange }: Prop
 
       {!isTour && (
         <div>
-          <label className="block text-sm font-medium text-text-primary mb-1" htmlFor="talkTopic">
+          <label className="block text-sm font-medium text-ink mb-1" htmlFor="talkTopic">
             Do you want to give a talk on a specific topic?
           </label>
-          <p className="text-xs text-text-secondary mb-2">
+          <p className="text-xs text-ink-soft mb-2">
             If you know the topic/s, please share them. e.g. "Yes — tips for keeping chooks" or "Maybe — composting demo"
           </p>
           <VoiceInput

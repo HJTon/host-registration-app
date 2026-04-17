@@ -42,7 +42,7 @@ function SlotButton({
       ? 'bg-primary text-white'
       : state === 'possible'
         ? 'bg-amber-400 text-white'
-        : 'bg-gray-200 text-gray-600 hover:bg-gray-300';
+        : 'bg-line text-ink-soft hover:bg-line';
 
   return (
     <button
@@ -64,15 +64,15 @@ function DayTable({ days, timeSlots, onChange, sectionLabel, hint }: {
 }) {
   return (
     <div>
-      <p className="text-sm font-semibold text-text-primary mb-1">{sectionLabel}</p>
-      <p className="text-xs text-text-secondary mb-2">{hint}</p>
+      <p className="text-sm font-semibold text-ink mb-1">{sectionLabel}</p>
+      <p className="text-xs text-ink-soft mb-2">{hint}</p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[340px]">
           <thead>
             <tr>
-              <th className="text-left py-2 pr-4 text-sm font-medium text-text-secondary w-28"></th>
-              <th className="py-2 px-2 text-center text-sm font-semibold text-text-primary">10am – 1pm</th>
-              <th className="py-2 px-2 text-center text-sm font-semibold text-text-primary">1pm – 4pm</th>
+              <th className="text-left py-2 pr-4 text-sm font-medium text-ink-soft w-28"></th>
+              <th className="py-2 px-2 text-center text-sm font-semibold text-ink">10am – 1pm</th>
+              <th className="py-2 px-2 text-center text-sm font-semibold text-ink">1pm – 4pm</th>
             </tr>
           </thead>
           <tbody>
@@ -80,8 +80,8 @@ function DayTable({ days, timeSlots, onChange, sectionLabel, hint }: {
               const morningKey = `${key}_morning` as TimeSlotKey;
               const afternoonKey = `${key}_afternoon` as TimeSlotKey;
               return (
-                <tr key={key} className="border-t border-gray-100">
-                  <td className="py-2 pr-4 text-sm font-medium text-text-primary">{label}</td>
+                <tr key={key} className="border-t border-line">
+                  <td className="py-2 pr-4 text-sm font-medium text-ink">{label}</td>
                   <td className="py-2 px-2 text-center">
                     <SlotButton slotKey={morningKey} timeSlots={timeSlots} onChange={onChange} />
                   </td>
@@ -115,8 +115,8 @@ export default function TimeSlotGrid({ timeSlots, onChange }: TimeSlotGridProps)
         sectionLabel="Midweek (optional)"
         hint="Tap a slot to mark it open. Tap to 'Possible' if being open is reliant on nearby hosts also being open."
       />
-      <p className="text-xs text-text-secondary">
-        Toggle: <span className="font-semibold text-primary">Open</span> → <span className="font-semibold text-amber-500">Possible</span> → <span className="font-semibold text-gray-500">Closed</span>
+      <p className="text-xs text-ink-soft">
+        Toggle: <span className="font-semibold text-primary">Open</span> → <span className="font-semibold text-amber-500">Possible</span> → <span className="font-semibold text-ink-muted">Closed</span>
       </p>
     </div>
   );

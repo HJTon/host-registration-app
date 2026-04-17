@@ -117,22 +117,22 @@ function ExpectedFormat({ propertyType }: { propertyType: string }) {
 
   if (isTour) {
     return (
-      <div className="bg-surface rounded-xl p-4 text-xs text-text-secondary space-y-1">
-        <p className="font-semibold text-text-primary text-sm mb-1">Expected format</p>
+      <div className="bg-cream-soft rounded-xl p-4 text-xs text-ink-soft space-y-1">
+        <p className="font-semibold text-ink text-sm mb-1">Expected format</p>
         <p><strong>Features:</strong> Consolidate into 4–6 one-sentence bullet points outlining sustainable features.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-surface rounded-xl p-4 text-xs text-text-secondary space-y-1">
-      <p className="font-semibold text-text-primary text-sm mb-1">Expected format</p>
+    <div className="bg-cream-soft rounded-xl p-4 text-xs text-ink-soft space-y-1">
+      <p className="font-semibold text-ink text-sm mb-1">Expected format</p>
       <p>Host first name(s), size of property, challenges and/or standout features.</p>
-      <p className="font-medium text-text-primary mt-1">Max 500 characters (approx. 70–100 words)</p>
+      <p className="font-medium text-ink mt-1">Max 500 characters (approx. 70–100 words)</p>
       <p className="mt-2 italic leading-relaxed">
         Example: Jen transformed a grassy 400msq section into a small thriving space. Native planting leads into a productive garden full of vegetables, herbs, and fruit trees—including an uncommon finger lime variety. The property features an in-ground worm tunnel, cold composting, hugelkultur and no-dig beds, Highline Brown chooks and Muscovy ducks. DIY and upcycled structures include a fish bench, wood storage, outdoor bath, garden shed, and gravity-fed water collection.
       </p>
-      <p className="mt-2 text-text-secondary italic">Note: Booklet text may vary but a proof will be provided.</p>
+      <p className="mt-2 text-ink-soft italic">Note: Booklet text may vary but a proof will be provided.</p>
     </div>
   );
 }
@@ -173,14 +173,14 @@ export default function StepUnique({ data, errors: _errors, onChange }: Props) {
 
   return (
     <div className="space-y-4">
-      <p className="text-text-secondary text-sm">
+      <p className="text-ink-soft text-sm">
         {introText}
       </p>
 
       <ExpectedFormat propertyType={data.propertyType} />
 
       <div>
-        <label className="block text-sm font-medium text-text-primary mb-1" htmlFor="whatMakesUnique">
+        <label className="block text-sm font-medium text-ink mb-1" htmlFor="whatMakesUnique">
           {fieldLabel}
         </label>
         <VoiceInput

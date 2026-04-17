@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { BrandHeader, Card, Divider } from '../components/ui';
 
 interface Deadline {
   date: string;
@@ -17,43 +17,37 @@ const KEY_DEADLINES: Deadline[] = [
 ];
 
 export default function DocumentsPage() {
-  const navigate = useNavigate();
-
   return (
     <div className="max-w-2xl mx-auto px-4 pb-12">
-      {/* Header */}
-      <div className="pt-6 pb-4 flex items-center gap-3">
-        <button
-          onClick={() => navigate('/')}
-          className="text-primary hover:text-primary-dark p-1 -ml-1"
-          aria-label="Back"
-        >
-          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </button>
-        <h1 className="text-2xl font-bold text-text-primary">Host documents</h1>
+      <BrandHeader backTo="/" />
+
+      {/* Heading */}
+      <div className="mt-2 mb-5">
+        <p className="italic text-[12px] text-ink-soft mb-0.5">Pukapuka · Resources</p>
+        <h1 className="font-display text-[28px] sm:text-[32px] leading-[1.05] text-brand-green-deep">
+          Host documents
+        </h1>
       </div>
 
-      {/* Key Deadlines */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-4">
-        <h2 className="text-xs font-bold uppercase tracking-wide text-primary mb-3">Key deadlines</h2>
+      <Card className="mb-4">
+        <Divider label="Key deadlines" className="mb-4" />
         <div className="space-y-3">
           {KEY_DEADLINES.map((item, i) => (
-            <div key={i} className="flex gap-3 text-sm">
-              <span className="text-primary font-medium shrink-0 w-36">{item.date}</span>
-              <span className="text-text-primary">{item.description}</span>
+            <div key={i} className="flex gap-3 text-[14px]">
+              <span className="font-mono text-brand-green-deep font-semibold shrink-0 w-40 tabular-nums">
+                {item.date}
+              </span>
+              <span className="text-ink">{item.description}</span>
             </div>
           ))}
         </div>
-      </div>
+      </Card>
 
-      {/* Placeholder for future documents */}
-      <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5 text-center">
-        <p className="text-sm text-text-secondary">
+      <Card className="bg-cream border-cream">
+        <p className="text-[13px] text-ink-soft text-center">
           More documents (information pack, guidelines, resources) will be added here closer to the event.
         </p>
-      </div>
+      </Card>
     </div>
   );
 }

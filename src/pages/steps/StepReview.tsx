@@ -46,8 +46,8 @@ const DEADLINE_TEXT = 'Info required by 15th April. Please include photos.';
 function Row({ label, value, required }: { label: string; value: string; required?: boolean }) {
   return (
     <div className="flex gap-2 text-sm py-1">
-      <span className="text-text-secondary shrink-0 w-32">{label}</span>
-      <span className={value ? 'text-text-primary' : 'text-amber-600 italic text-xs self-center'}>
+      <span className="text-ink-soft shrink-0 w-32">{label}</span>
+      <span className={value ? 'text-ink' : 'text-amber-600 italic text-xs self-center'}>
         {value || (required ? 'Required' : '—')}
       </span>
     </div>
@@ -56,7 +56,7 @@ function Row({ label, value, required }: { label: string; value: string; require
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="border-b border-gray-100 pb-3 last:border-0">
+    <div className="border-b border-line pb-3 last:border-0">
       <h3 className="text-xs font-bold uppercase tracking-wide text-primary mb-2">{title}</h3>
       {children}
     </div>
@@ -102,7 +102,7 @@ function OpenSlots({ timeSlots }: { timeSlots: FormData['timeSlots'] }) {
   return (
     <div className="text-sm space-y-0.5">
       {lines.map((line, i) => (
-        <p key={i} className="text-text-primary">{line}</p>
+        <p key={i} className="text-ink">{line}</p>
       ))}
     </div>
   );
@@ -171,10 +171,10 @@ export default function StepReview({ data, errors, onChange, submitError }: Prop
 
       {/* Advertiser */}
       <div>
-        <label className="block text-sm font-medium text-text-primary mb-1" htmlFor="advertiser">
-          Local business advertiser connection <span className="text-text-secondary font-normal">(optional)</span>
+        <label className="block text-sm font-medium text-ink mb-1" htmlFor="advertiser">
+          Local business advertiser connection <span className="text-ink-soft font-normal">(optional)</span>
         </label>
-        <p className="text-xs text-text-secondary mb-2">
+        <p className="text-xs text-ink-soft mb-2">
           Do you have, work for or know a local business who may like to advertise alongside in the Sustainable Trails programme?
         </p>
         <textarea
@@ -183,16 +183,16 @@ export default function StepReview({ data, errors, onChange, submitError }: Prop
           onChange={e => onChange('advertiser', e.target.value)}
           rows={2}
           placeholder="Business name, contact name, email/phone…"
-          className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
+          className="w-full border border-line rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-brand-green resize-y"
         />
       </div>
 
       {/* Photo upload */}
       <div>
-        <label className="block text-sm font-medium text-text-primary mb-1">
+        <label className="block text-sm font-medium text-ink mb-1">
           Property photos
         </label>
-        <p className="text-xs text-text-secondary mb-3">
+        <p className="text-xs text-ink-soft mb-3">
           Please take & upload photos or email to Suzy at{' '}
           <a href="mailto:suzy.randall@sustainabletaranaki.org.nz" className="text-primary">
             suzy.randall@sustainabletaranaki.org.nz
@@ -202,7 +202,7 @@ export default function StepReview({ data, errors, onChange, submitError }: Prop
         {data.photos.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-3">
             {data.photos.map((file, i) => (
-              <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
+              <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden bg-cream-soft">
                 <img src={getThumb(file)} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
                 <button
                   type="button"
@@ -221,20 +221,20 @@ export default function StepReview({ data, errors, onChange, submitError }: Prop
           <button
             type="button"
             onClick={() => cameraInputRef.current?.click()}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl text-sm font-medium text-text-secondary hover:border-primary hover:text-primary transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-line rounded-xl text-sm font-medium text-ink-soft hover:border-primary hover:text-primary transition-colors"
           >
             <span className="text-lg">📷</span> Take photo
           </button>
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl text-sm font-medium text-text-secondary hover:border-primary hover:text-primary transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-line rounded-xl text-sm font-medium text-ink-soft hover:border-primary hover:text-primary transition-colors"
           >
             <span className="text-lg">🖼️</span> Choose from device
           </button>
         </div>
 
-        <p className="mt-2 text-xs text-text-secondary">
+        <p className="mt-2 text-xs text-ink-soft">
           {data.photos.length === 0
             ? 'No photos added yet — aim for at least 3, or email them to Suzy'
             : `${data.photos.length} photo${data.photos.length !== 1 ? 's' : ''} added${data.photos.length < 3 ? ' — aim for at least 3' : ' ✓'}`}
@@ -242,12 +242,12 @@ export default function StepReview({ data, errors, onChange, submitError }: Prop
       </div>
 
       {/* Review summary */}
-      <div className="bg-surface rounded-xl p-4 space-y-3">
-        <h2 className="font-semibold text-text-primary">Your registration summary</h2>
+      <div className="bg-cream-soft rounded-xl p-4 space-y-3">
+        <h2 className="font-semibold text-ink">Your registration summary</h2>
 
         <Section title="Contact">
           <Row label="Email" value={data.email} required />
-          {errors.email && <p className="text-red-600 text-sm mt-1">{errors.email}</p>}
+          {errors.email && <p className="text-danger text-sm mt-1">{errors.email}</p>}
           <Row label="Property" value={data.propertyName} />
           <Row label="Host(s)" value={data.hostNames} />
           <Row label="Phone" value={data.contactNumber} />
@@ -293,14 +293,14 @@ export default function StepReview({ data, errors, onChange, submitError }: Prop
           {data.parkingPhotos.length > 0 && (
             <Row label="Parking photos" value={`${data.parkingPhotos.length} photo${data.parkingPhotos.length !== 1 ? 's' : ''} added`} />
           )}
-          {isBackyard && <Row label="Kid friendly" value={kidFriendlyLabel} />}
+          {isBackyard && <Row label="Kid activities" value={kidFriendlyLabel} />}
           {data.talkTopic && <Row label="Talk topic" value={data.talkTopic} />}
         </Section>
       </div>
 
       {submitError && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <p className="text-red-700 text-sm font-medium">{submitError}</p>
+        <div className="bg-danger/10 border border-red-200 rounded-xl p-4">
+          <p className="text-danger text-sm font-medium">{submitError}</p>
         </div>
       )}
     </div>

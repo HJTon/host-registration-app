@@ -36,3 +36,7 @@ yarn-error.log*
 
 # TypeScript cache
 *.tsbuildinfo
+
+# Brand source material (not app code)
+Trails Branding*.zip
+trails-branding/

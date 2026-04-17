@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import VoiceInput from '../components/VoiceInput';
+import { BrandHeader, Card, Btn, Field, Input } from '../components/ui';
 
 const FEEDBACK_TYPES = ['Idea', 'Complaint', 'Compliment', 'Question'] as const;
 type FeedbackType = typeof FEEDBACK_TYPES[number];
@@ -56,123 +57,109 @@ export default function FeedbackPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 pb-12">
-      {/* Header */}
-      <div className="pt-6 pb-4 flex items-center gap-3">
-        <button
-          onClick={() => navigate('/')}
-          className="text-primary hover:text-primary-dark p-1 -ml-1"
-          aria-label="Back"
-        >
-          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Share feedback</h1>
-          <p className="text-sm text-text-secondary mt-0.5">Ideas, questions, complaints, or compliments</p>
-        </div>
+      <BrandHeader backTo="/" />
+
+      <div className="mt-2 mb-5">
+        <p className="italic text-[12px] text-ink-soft mb-0.5">Kōrero · Your voice</p>
+        <h1 className="font-display text-[28px] sm:text-[32px] leading-[1.05] text-brand-green-deep">
+          Share feedback
+        </h1>
+        <p className="text-[13px] text-ink-soft mt-1">
+          Ideas, questions, complaints, or compliments
+        </p>
       </div>
 
       {submitted ? (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center mt-4">
-          <p className="text-lg font-bold text-green-800">Thanks for your feedback!</p>
-          <p className="text-sm text-green-700 mt-1 mb-4">The team will follow up if needed.</p>
-          <button
-            onClick={() => navigate('/')}
-            className="bg-primary text-white rounded-xl px-6 py-3 font-semibold text-sm hover:bg-primary-dark transition-colors"
-          >
+        <Card className="bg-brand-green-soft border-brand-green-soft text-center">
+          <p className="font-display text-[22px] text-brand-green-deep">Ngā mihi · Thanks!</p>
+          <p className="text-sm text-ink-soft mt-1 mb-4">
+            The team will follow up if needed.
+          </p>
+          <Btn variant="primary" size="md" onClick={() => navigate('/')}>
             Back to portal
-          </button>
-        </div>
+          </Btn>
+        </Card>
       ) : (
-        <form onSubmit={handleSubmit} className="mt-2">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
-
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1" htmlFor="fb-name">
-                Name <span className="text-text-secondary font-normal">(optional)</span>
-              </label>
-              <input
+        <form onSubmit={handleSubmit}>
+          <Card className="space-y-5">
+            <Field label="Name" htmlFor="fb-name" optional>
+              <Input
                 id="fb-name"
                 type="text"
                 value={form.name}
                 onChange={e => set('name', e.target.value)}
                 placeholder="Your name"
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[52px]"
               />
-            </div>
+            </Field>
 
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1" htmlFor="fb-property">
-                Property name <span className="text-text-secondary font-normal">(optional)</span>
-              </label>
-              <input
+            <Field label="Property name" htmlFor="fb-property" optional>
+              <Input
                 id="fb-property"
                 type="text"
                 value={form.propertyName}
                 onChange={e => set('propertyName', e.target.value)}
                 placeholder="Your property name"
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[52px]"
               />
-            </div>
+            </Field>
 
-            <div>
-              <fieldset>
-                <legend className="block text-sm font-medium text-text-primary mb-3">
-                  Type of feedback
-                </legend>
-                <div className="grid grid-cols-2 gap-2">
-                  {FEEDBACK_TYPES.map(type => (
-                    <label
+            <fieldset>
+              <legend className="text-[13px] font-semibold text-ink mb-2">
+                Type of feedback
+              </legend>
+              <div className="grid grid-cols-2 gap-2">
+                {FEEDBACK_TYPES.map(type => {
+                  const selected = form.feedbackType === type;
+                  return (
+                    <button
                       key={type}
-                      className={`flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-colors min-h-[48px] ${
-                        form.feedbackType === type
-                          ? 'border-primary bg-secondary/30'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
+                      type="button"
+                      onClick={() => set('feedbackType', type)}
+                      className={[
+                        'flex items-center gap-2 h-11 px-3 rounded-full border text-left transition-colors',
+                        selected
+                          ? 'border-brand-green bg-brand-green-soft text-brand-green-deep font-semibold'
+                          : 'border-line bg-paper text-ink-soft hover:border-brand-green/40',
+                      ].join(' ')}
                     >
-                      <input
-                        type="radio"
-                        name="feedbackType"
-                        value={type}
-                        checked={form.feedbackType === type}
-                        onChange={() => set('feedbackType', type)}
-                        className="w-4 h-4 accent-primary shrink-0"
-                      />
-                      <span className="text-sm font-medium text-text-primary">{type}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            </div>
+                      {selected && (
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                      <span className="text-sm">{type}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
 
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1" htmlFor="fb-message">
-                Message
-              </label>
+            <Field label="Message" htmlFor="fb-message">
               <VoiceInput
                 id="fb-message"
                 value={form.message}
                 onChange={v => set('message', v)}
                 rows={5}
-                fieldHint="feedback from a Sustainable Backyards 2026 host"
+                fieldHint="feedback from a Sustainable Trails 2026 host"
               />
-            </div>
+            </Field>
 
             {submitError && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                <p className="text-red-700 text-sm font-medium">{submitError}</p>
+              <div className="bg-danger/10 border border-danger rounded-[10px] p-3">
+                <p className="text-danger text-sm font-medium">{submitError}</p>
               </div>
             )}
-          </div>
+          </Card>
 
-          <button
+          <Btn
             type="submit"
+            variant="primary"
+            size="lg"
+            fullWidth
             disabled={isSubmitting}
-            className="mt-4 w-full bg-primary text-white rounded-2xl px-6 py-4 text-base font-bold min-h-[56px] hover:bg-primary-dark transition-colors disabled:opacity-50"
+            className="mt-4"
           >
             {isSubmitting ? 'Submitting…' : 'Submit feedback'}
-          </button>
+          </Btn>
         </form>
       )}
     </div>

@@ -54,9 +54,65 @@ function slotValue(timeSlots: Record<string, string | boolean>, key: string): st
   return 'Closed';
 }
 
+const COMMON_HEADERS = [
+  'Submitted At', 'Submission ID', 'Email', 'Property Name', 'Host Name(s)',
+  'Contact Number', 'Preferred Contact', 'Address', 'Suburb', 'Town / City', 'Property Type',
+];
+
+const BACKYARD_HEADERS = [
+  ...COMMON_HEADERS, 'Property Size', 'Year Established',
+  'Sat 31 Oct 10am-1pm', 'Sat 31 Oct 1pm-4pm', 'Sun 1 Nov 10am-1pm', 'Sun 1 Nov 1pm-4pm',
+  'Sat 7 Nov 10am-1pm', 'Sat 7 Nov 1pm-4pm', 'Sun 8 Nov 10am-1pm', 'Sun 8 Nov 1pm-4pm',
+  'Fri 30 Oct 10am-1pm', 'Fri 30 Oct 1pm-4pm', 'Mon 2 Nov 10am-1pm', 'Mon 2 Nov 1pm-4pm',
+  'Tue 3 Nov 10am-1pm', 'Tue 3 Nov 1pm-4pm', 'Wed 4 Nov 10am-1pm', 'Wed 4 Nov 1pm-4pm',
+  'Thu 5 Nov 10am-1pm', 'Thu 5 Nov 1pm-4pm', 'Fri 6 Nov 10am-1pm', 'Fri 6 Nov 1pm-4pm',
+  'Additional Hours', 'Volunteer Note', 'Features', 'Features Notes', 'Brief Description',
+  'Full Description', 'Facilities', 'Access Limitations', 'Parking Info', 'Parking Photo Links',
+  'Kid Activities', 'Talk Topic', 'Advertiser', 'Photo Links',
+];
+
+const TOUR_HEADERS = (sizeLabel: string, yearsLabel: string, notesLabel: string, briefLabel: string) => [
+  ...COMMON_HEADERS, sizeLabel, yearsLabel, notesLabel,
+  'Tour Locations', 'Tour Duration', 'Tour Capacity', 'Tour Price',
+  'Second Talk', 'Second Talk Details', 'Tour Availability', 'Tour Dates',
+  'Sustainability Features', briefLabel, 'Full Description',
+  'Facilities', 'Access Limitations', 'Parking Info', 'Parking Photo Links', 'Advertiser', 'Photo Links',
+];
+
+function getHeaders(propertyType: string): string[] {
+  switch (propertyType) {
+    case 'build': return TOUR_HEADERS('Build Size (sqm)', 'Years in Property', 'Build/Renovate/Purchase', 'Brief Description (How Build Is Used)');
+    case 'farm': return TOUR_HEADERS('Size & Type of Property', 'Years Working the Land', 'Cultural/Historical Notes', 'Brief Description (How Farm Is Used)');
+    case 'lifestyle-block': return TOUR_HEADERS('Size & Type of Property', 'Years Working the Land', 'Cultural/Historical Notes', 'Brief Description (How Land Is Used)');
+    default: return BACKYARD_HEADERS;
+  }
+}
+
+async function ensureTab(
+  sheets: ReturnType<typeof getSheets>,
+  spreadsheetId: string,
+  tabName: string,
+  headers: string[],
+): Promise<void> {
+  const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+  const exists = spreadsheet.data.sheets?.some(s => s.properties?.title === tabName);
+  if (exists) return;
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: { requests: [{ addSheet: { properties: { title: tabName } } }] },
+  });
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `'${tabName}'!A1`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: { values: [headers] },
+  });
+}
+
 interface UpdateBody {
   submissionId: string;
   propertyType: string;
+  originalPropertyType?: string; // the tab the submission was originally written to
   email: string;
   propertyName: string;
   hostNames: string;
@@ -186,13 +242,16 @@ export default async (request: Request, _context: Context) => {
       });
     }
 
-    const tabName = getTabName(body.propertyType);
+    // Use originalPropertyType to find which tab the submission was written to.
+    // This handles the case where the host changes property type during editing.
+    const sourceTabName = getTabName(body.originalPropertyType || body.propertyType);
+    const destTabName = getTabName(body.propertyType);
     const sheets = getSheets();
 
-    // Fetch column B (Submission ID) from the tab to locate the row
+    // Fetch column A:B from the source tab to locate the row by submission ID
     const readResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `'${tabName}'!A:B`,
+      range: `'${sourceTabName}'!A:B`,
     });
 
     const rows = readResponse.data.values ?? [];
@@ -212,12 +271,32 @@ export default async (request: Request, _context: Context) => {
 
     const newRow = buildRow(body, originalSubmittedAt);
 
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: `'${tabName}'!A${sheetRowNumber}`,
-      valueInputOption: 'USER_ENTERED',
-      requestBody: { values: [newRow] },
-    });
+    if (sourceTabName === destTabName) {
+      // Same tab — update the row in place
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `'${sourceTabName}'!A${sheetRowNumber}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [newRow] },
+      });
+    } else {
+      // Property type changed — clear the old row and append to the new tab
+      const emptyRow = new Array((rows[rowIndex] as string[]).length).fill('');
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `'${sourceTabName}'!A${sheetRowNumber}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [emptyRow] },
+      });
+      await ensureTab(sheets, spreadsheetId, destTabName, getHeaders(body.propertyType));
+      await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: `'${destTabName}'!A1`,
+        valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: { values: [newRow] },
+      });
+    }
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

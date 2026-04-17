@@ -72,7 +72,7 @@ const BACKYARD_HEADERS = [
   'Access Limitations',
   'Parking Info',
   'Parking Photo Links',
-  'Kid Friendly',
+  'Kid Activities',
   'Talk Topic',
   'Advertiser',
   'Photo Links',

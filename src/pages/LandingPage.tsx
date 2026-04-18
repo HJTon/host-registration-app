@@ -62,7 +62,7 @@ export default function LandingPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 pb-12">
-      <BrandHeader />
+      <BrandHeader size="lg" />
 
       {/* Cream hero header */}
       <section className="bg-cream rounded-[22px] px-5 py-6 sm:px-8 sm:py-8 mt-2">

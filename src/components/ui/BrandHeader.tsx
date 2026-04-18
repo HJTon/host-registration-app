@@ -6,10 +6,12 @@ interface BrandHeaderProps {
   backLabel?: string;
   rightSlot?: React.ReactNode;
   className?: string;
+  /** sm = compact in-page header (default); lg = full-width hero wordmark for the landing page */
+  size?: 'sm' | 'lg';
 }
 
 /**
- * Slim top-of-page header showing the Trails wordmark lockup.
+ * Top-of-page header showing the Trails wordmark lockup.
  * Reproduces the sidebar brand block from the design handoff:
  *   TARANAKI / SUSTAINABLE (bright) · TRAILS (deep)
  * Barlow Condensed 700, uppercase, tracked.
@@ -19,7 +21,26 @@ export default function BrandHeader({
   backLabel = 'Home',
   rightSlot,
   className = '',
+  size = 'sm',
 }: BrandHeaderProps) {
+  if (size === 'lg') {
+    // Same lockup as the compact header, just scaled up proportionally
+    // (eyebrow : wordmark ≈ 11 : 20 ≈ 0.55, matching the .eyebrow + text-[20px] pairing)
+    return (
+      <header className={['py-4 sm:py-5', className].join(' ')}>
+        <Link to="/" className="flex flex-col leading-none select-none">
+          <span className="uppercase font-semibold text-ink-muted text-[20px] sm:text-[30px] md:text-[40px] tracking-[0.16em] mb-1 sm:mb-1.5">
+            Taranaki
+          </span>
+          <span className="font-display text-[36px] sm:text-[56px] md:text-[72px] leading-none">
+            <span className="text-brand-green">Sustainable</span>{' '}
+            <span className="text-brand-green-deep">Trails</span>
+          </span>
+        </Link>
+      </header>
+    );
+  }
+
   return (
     <header
       className={[

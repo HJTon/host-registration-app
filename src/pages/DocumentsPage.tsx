@@ -6,8 +6,8 @@ interface Deadline {
 }
 
 const KEY_DEADLINES: Deadline[] = [
-  { date: '15 April 2026', description: 'Registration and property information due' },
-  { date: '1 May 2026', description: 'Property photos submitted' },
+  { date: 'ASAP', description: 'Registration and property information — currently being collated, submit ASAP if not already done' },
+  { date: 'ASAP', description: 'Property photos — please submit if not already provided' },
   { date: 'Mid-September 2026', description: 'Host information pack sent out' },
   { date: 'Early October 2026', description: 'Corflute signs delivered' },
   { date: '30 October 2026', description: 'Backyards Trail opens' },

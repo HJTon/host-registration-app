@@ -123,7 +123,7 @@ export default function LandingPage() {
               Register your property
             </p>
             <p className="text-[13px] opacity-85 mt-0.5">
-              Register by 15 April 2026 · 10–15 min, progress saved automatically
+              Submit ASAP · 10–15 min, progress saved automatically
             </p>
           </div>
           <svg className="w-5 h-5 shrink-0 opacity-80 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

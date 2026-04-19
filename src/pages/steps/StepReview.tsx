@@ -197,6 +197,7 @@ export default function StepReview({ data, errors, onChange, submitError }: Prop
           <a href="mailto:suzy.randall@sustainabletaranaki.org.nz" className="text-primary">
             suzy.randall@sustainabletaranaki.org.nz
           </a>
+          . Landscape photos preferred (that is, with your phone held sideways).
         </p>
 
         {data.photos.length > 0 && (

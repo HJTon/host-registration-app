@@ -41,7 +41,7 @@ const KID_FRIENDLY_LABELS: Record<string, string> = {
   yes: 'Yes', no: 'No', maybe: 'Maybe',
 };
 
-const DEADLINE_TEXT = 'Info required by 15th April. Please include photos.';
+const DEADLINE_TEXT = "Host info is currently being collated — if you haven't provided yours already, please do so ASAP. Please include photos.";
 
 function Row({ label, value, required }: { label: string; value: string; required?: boolean }) {
   return (

@@ -7,11 +7,12 @@ interface TileProps {
   title: string;
   description: string;
   onClick?: () => void;
+  href?: string;
   comingSoon?: boolean;
   info?: boolean;
 }
 
-function Tile({ icon, title, description, onClick, comingSoon, info }: TileProps) {
+function Tile({ icon, title, description, onClick, href, comingSoon, info }: TileProps) {
   if (comingSoon) {
     return (
       <div className="relative bg-cream-soft border border-line rounded-[14px] p-4 flex flex-col gap-2 opacity-70 select-none">
@@ -32,6 +33,21 @@ function Tile({ icon, title, description, onClick, comingSoon, info }: TileProps
         <p className="font-semibold text-brand-green-ink text-sm">{title}</p>
         <p className="text-xs text-ink-soft leading-snug">{description}</p>
       </div>
+    );
+  }
+
+  if (href) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-left bg-paper border border-line rounded-[14px] p-4 flex flex-col gap-2 shadow-card hover:border-brand-green hover:-translate-y-[1px] transition-all active:scale-[0.98]"
+      >
+        <span className="text-2xl">{icon}</span>
+        <p className="font-semibold text-ink text-sm">{title}</p>
+        <p className="text-xs text-ink-soft leading-snug">{description}</p>
+      </a>
     );
   }
 
@@ -148,9 +164,9 @@ export default function LandingPage() {
         />
         <Tile
           icon="🎤"
-          title="Talks & workshops"
-          description="We'll collect details on talks, workshops, and kids activities at a later date"
-          comingSoon
+          title="Talks and Workshops"
+          description="Giving a Host Talk? Please fill in any missing information here about your Host Talk and confirm details by Wed 13th May."
+          href="https://docs.google.com/document/d/1ps4XwVCOAlF-jJYy8dEWefDvW2nUm_JdTIRuxqoeweA/edit?pli=1&tab=t.0"
         />
         <Tile
           icon="✏️"

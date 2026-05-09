@@ -1,6 +1,36 @@
 import { useNavigate } from 'react-router-dom';
-import { hasDraft, clearDraft } from '../utils/storage';
+import { hasDraft, clearDraft, loadDraft, getSubmissions } from '../utils/storage';
+import { getPropertyCategory } from '../types/form';
 import { Btn, Card, BrandHeader } from '../components/ui';
+
+const TALKS_DOC_BACKYARDS =
+  'https://docs.google.com/document/d/1ps4XwVCOAlF-jJYy8dEWefDvW2nUm_JdTIRuxqoeweA/edit?pli=1&tab=t.0';
+const TALKS_DOC_TOURS =
+  'https://docs.google.com/document/d/1hk7ehjjsFL7s_q_616RyCiPNwLdYlantnoCUYQxPDPo/edit?tab=t.0';
+
+// Returns which talks docs to show based on the host's saved property types.
+// If nothing is saved, show both so the host can pick the right one.
+function getTalksDocs(): { backyards: boolean; tours: boolean } {
+  const types = new Set<string>();
+  for (const sub of getSubmissions()) {
+    if (sub.propertyType) types.add(sub.propertyType);
+  }
+  const draft = loadDraft();
+  if (draft?.propertyType) types.add(draft.propertyType);
+
+  if (types.size === 0) return { backyards: true, tours: true };
+
+  let backyards = false;
+  let tours = false;
+  for (const t of types) {
+    const cat = getPropertyCategory(t);
+    if (cat === 'backyard') backyards = true;
+    else if (cat === 'build' || cat === 'farm' || cat === 'lifestyle-block') tours = true;
+  }
+  // Fallback if category couldn't be resolved
+  if (!backyards && !tours) return { backyards: true, tours: true };
+  return { backyards, tours };
+}
 
 interface TileProps {
   icon: string;
@@ -66,6 +96,7 @@ function Tile({ icon, title, description, onClick, href, comingSoon, info }: Til
 export default function LandingPage() {
   const navigate = useNavigate();
   const draftExists = hasDraft();
+  const talksDocs = getTalksDocs();
 
   const handleStartFresh = () => {
     clearDraft();
@@ -162,12 +193,26 @@ export default function LandingPage() {
           description="Ideas, questions, or compliments — we'd love to hear from you"
           onClick={() => navigate('/feedback')}
         />
-        <Tile
-          icon="🎤"
-          title="Talks and Workshops"
-          description="Giving a Host Talk? Please fill in any missing information here about your Host Talk and confirm details by Wed 13th May."
-          href="https://docs.google.com/document/d/1ps4XwVCOAlF-jJYy8dEWefDvW2nUm_JdTIRuxqoeweA/edit?pli=1&tab=t.0"
-        />
+        {talksDocs.backyards && (
+          <Tile
+            icon="🎤"
+            title={talksDocs.tours ? 'Talks and Workshops (Backyards)' : 'Talks and Workshops'}
+            description="Giving a Host Talk? Please fill in any missing information here about your Host Talk and confirm details by Wed 13th May."
+            href={TALKS_DOC_BACKYARDS}
+          />
+        )}
+        {talksDocs.tours && (
+          <Tile
+            icon="🎤"
+            title={
+              talksDocs.backyards
+                ? 'Talks and Workshops (Builds, Farms & Lifestyle)'
+                : 'Talks and Workshops'
+            }
+            description="Giving a Host Talk? Please fill in any missing information here about your Host Talk and confirm details by Wed 13th May."
+            href={TALKS_DOC_TOURS}
+          />
+        )}
         <Tile
           icon="✏️"
           title="Edit property details"

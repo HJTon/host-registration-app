@@ -101,3 +101,32 @@ body {
 .shadow-hero {
   box-shadow: var(--shadow-hero);
 }
+
+/* ── Print — Health & Safety plan ───────────────────────────────────────────
+   Strip app chrome and shadows so the H&S plan prints / exports as a clean
+   white document. Only the .hs-plan content is shown. */
+@media print {
+  html,
+  body {
+    background: #ffffff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .hs-plan {
+    max-width: none;
+    padding: 0;
+    margin: 0;
+  }
+  .hs-plan .shadow-card,
+  .hs-plan .shadow-hero {
+    box-shadow: none !important;
+  }
+  .hs-plan .bg-paper,
+  .hs-plan .border {
+    border-color: #d8d8d8 !important;
+  }
+  .hs-block {
+    break-inside: avoid;
+  }
+}

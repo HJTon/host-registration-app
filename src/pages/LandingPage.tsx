@@ -182,6 +182,12 @@ export default function LandingPage() {
       {/* Tools grid */}
       <section className="mt-4 grid grid-cols-2 gap-3">
         <Tile
+          icon="🦺"
+          title="Health & Safety"
+          description="Complete and sign your property's health & safety plan"
+          onClick={() => navigate('/health-safety')}
+        />
+        <Tile
           icon="🏡"
           title="Property preparation checklist"
           description="Track what to do before, during, and after the event"

@@ -1,8 +1,10 @@
 import type { FormData, SlotState } from '../types/form';
 import { getInitialFormData } from '../types/form';
+import type { HSResponse } from '../types/healthSafety';
 
 const DRAFT_KEY = 'host-registration-draft-2026';
 const SUBMISSIONS_KEY = 'host-submissions-2026';
+const HS_KEY = 'host-hs-2026';
 
 type DraftData = Omit<FormData, 'photos' | 'parkingPhotos'>;
 
@@ -89,4 +91,39 @@ export function getSubmissionById(id: string): SubmittedRegistration | null {
 
 export function generateSubmissionId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// ── Health & Safety responses ─────────────────────────────────────────────────
+// Stored locally (like submissions) so a host can reopen, edit, and view the
+// printable plan from the same device.
+
+export function getHSResponses(): HSResponse[] {
+  const raw = localStorage.getItem(HS_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as HSResponse[];
+  } catch {
+    return [];
+  }
+}
+
+export function saveHSResponse(response: HSResponse): void {
+  const existing = getHSResponses();
+  const idx = existing.findIndex(r => r.submissionId === response.submissionId);
+  if (idx >= 0) {
+    existing[idx] = response;
+  } else {
+    existing.push(response);
+  }
+  localStorage.setItem(HS_KEY, JSON.stringify(existing));
+}
+
+export function getHSResponseById(id: string): HSResponse | null {
+  return getHSResponses().find(r => r.submissionId === id) ?? null;
+}
+
+// Find a host's existing H&S plan for a given registration (so we can offer
+// "view / edit" instead of starting a blank form).
+export function getHSResponseByRegistration(registrationId: string): HSResponse | null {
+  return getHSResponses().find(r => r.linkedRegistrationId === registrationId) ?? null;
 }

@@ -9,6 +9,8 @@ import EditRegistrationPage from './pages/EditRegistrationPage';
 import HealthSafetyLandingPage from './pages/HealthSafetyLandingPage';
 import HSFormPage from './pages/HSFormPage';
 import HSPlanPage from './pages/HSPlanPage';
+import DashboardPage from './pages/DashboardPage';
+import DashboardPlanPage from './pages/DashboardPlanPage';
 
 export default function App() {
   return (
@@ -25,6 +27,9 @@ export default function App() {
           <Route path="/health-safety" element={<HealthSafetyLandingPage />} />
           <Route path="/health-safety/form" element={<HSFormPage />} />
           <Route path="/health-safety/plan" element={<HSPlanPage />} />
+          {/* Hidden coordinator dashboard (password-gated) — not linked from the app */}
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/dashboard/plan" element={<DashboardPlanPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

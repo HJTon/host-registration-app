@@ -154,3 +154,48 @@ export function buildHSRow(
     row: [...leading, ...middle, ...trailing],
   };
 }
+
+// Inverse of buildHSRow: reconstruct an HSResponse-shaped object from a sheet
+// row, so the dashboard can render a host's plan with the same component the
+// host sees. Columns are located by header name (robust to column reordering).
+// Group selections were joined into one cell on write; on read we surface that
+// cell as a single-item array, which the plan renderer displays verbatim.
+export function rowToHSResponse(
+  hsType: HSType,
+  headers: string[],
+  row: string[],
+): HSSubmitBody {
+  const idx = (name: string) => headers.indexOf(name);
+  const at = (name: string) => {
+    const i = idx(name);
+    return i >= 0 ? String(row[i] ?? '') : '';
+  };
+
+  const fields: Record<string, HSFieldValue> = {};
+  for (const spec of HS_COLUMNS[hsType]) {
+    // spec.header already carries the " — Plan" suffix for plan columns.
+    const cell = at(spec.header);
+    if (spec.kind === 'plan') {
+      fields[`${spec.id}_plan`] = cell;
+    } else if (spec.kind === 'group') {
+      fields[spec.id] = cell ? [cell] : [];
+    } else {
+      fields[spec.id] = cell;
+    }
+  }
+
+  return {
+    submissionId: at('Submission ID'),
+    hsType,
+    linkedRegistrationId: at('Linked Property'),
+    email: at('Email'),
+    name: at('Host Name'),
+    propertyName: at('Property Name'),
+    propertyAddress: at('Property Address'),
+    fields,
+    acknowledged: at('Acknowledged').toLowerCase() === 'yes',
+    signatureName: at('Signed By'),
+    signedAt: at('Signed At'),
+    submittedAt: at('Submitted At'),
+  };
+}

@@ -31,11 +31,13 @@ const HS_TABS: Record<HSType, string> = {
   backyards: getHSTabName('backyards'),
   builds: getHSTabName('builds'),
   farms: getHSTabName('farms'),
+  lifestyle: getHSTabName('lifestyle'),
 };
 
 function hsTypeForProperty(propertyType: string): HSType {
   if (propertyType === 'build') return 'builds';
-  if (propertyType === 'farm' || propertyType === 'lifestyle-block') return 'farms';
+  if (propertyType === 'farm') return 'farms';
+  if (propertyType === 'lifestyle-block') return 'lifestyle';
   return 'backyards'; // private-property, community-garden, school-garden
 }
 
@@ -205,6 +207,7 @@ export default async (request: Request, _context: Context) => {
         backyards: { total: 0, done: 0 },
         builds: { total: 0, done: 0 },
         farms: { total: 0, done: 0 },
+        lifestyle: { total: 0, done: 0 },
       };
       for (const h of hosts) {
         byType[h.hsType].total += 1;

@@ -25,9 +25,12 @@ function getSheets() {
 }
 
 // 2025 response sheets (defaults can be overridden via env). Builds → none.
+// Lifestyle blocks were grouped with Farms last year, so they share that sheet.
+const FARMS_2025 = { env: 'HS_2025_FARMS_SHEET_ID', id: '1v-bGDM0dQneFFS1yB7gS_SQEuBrlLRCen6qxQR3nUPw' };
 const SOURCE: Record<HSType, { env: string; id: string } | null> = {
   backyards: { env: 'HS_2025_BACKYARDS_SHEET_ID', id: '19XR2tG-T0ex2JHVOslVnzbStCf3oGGnvW0CTV4X9qmU' },
-  farms: { env: 'HS_2025_FARMS_SHEET_ID', id: '1v-bGDM0dQneFFS1yB7gS_SQEuBrlLRCen6qxQR3nUPw' },
+  farms: FARMS_2025,
+  lifestyle: FARMS_2025,
   builds: null,
 };
 
@@ -62,6 +65,34 @@ interface ColMap {
   options?: string[];
 }
 
+// Farms/Lifestyle share the 2025 Farms sheet layout. tourOutline (col 7) and
+// the old site-visit column (col 28) are intentionally not prefilled — the tour
+// outline moved to registration, and the site-visit question became free-text
+// "Concerns or Questions".
+const FARM_MAP: ColMap[] = [
+  { col: 4, field: 'parking', kind: 'group', options: OPTS.fm.parking },
+  { col: 5, field: 'vehicleCapacity', kind: 'value' },
+  { col: 6, field: 'parkingToTour', kind: 'value' },
+  { col: 8, field: 'ageSuitability', kind: 'group', options: OPTS.fm.age },
+  { col: 9, field: 'clothingFootwear', kind: 'value' },
+  { col: 10, field: 'trails', kind: 'group', options: OPTS.fm.trails },
+  { col: 11, field: 'trails_plan', kind: 'plan' },
+  { col: 12, field: 'steepSteps', kind: 'group', options: OPTS.fm.steep },
+  { col: 13, field: 'steepSteps_plan', kind: 'plan' },
+  { col: 14, field: 'water', kind: 'group', options: OPTS.fm.water },
+  { col: 15, field: 'water_plan', kind: 'plan' },
+  { col: 16, field: 'animals', kind: 'group', options: OPTS.fm.animals },
+  { col: 17, field: 'animals_plan', kind: 'plan' },
+  { col: 18, field: 'machinery', kind: 'group', options: OPTS.fm.machinery },
+  { col: 19, field: 'machinery_plan', kind: 'plan' },
+  { col: 20, field: 'biosecurity', kind: 'group', options: OPTS.fm.biosecurity },
+  { col: 21, field: 'biosecurity_plan', kind: 'plan' },
+  { col: 22, field: 'other', kind: 'group', options: OPTS.fm.other },
+  { col: 23, field: 'other_plan', kind: 'plan' },
+  { col: 24, field: 'firstAid', kind: 'yesno' },
+  { col: 25, field: 'emergencyPlan', kind: 'value' },
+];
+
 const MAPS: Record<HSType, ColMap[]> = {
   backyards: [
     { col: 4, field: 'parking', kind: 'group', options: OPTS.bk.parking },
@@ -77,33 +108,9 @@ const MAPS: Record<HSType, ColMap[]> = {
     { col: 14, field: 'firstAid', kind: 'yesno' },
     { col: 15, field: 'evacPoint', kind: 'yesno' },
     { col: 16, field: 'vehicleAccess', kind: 'yesno' },
-    { col: 19, field: 'siteVisit', kind: 'value' },
   ],
-  farms: [
-    { col: 4, field: 'parking', kind: 'group', options: OPTS.fm.parking },
-    { col: 5, field: 'vehicleCapacity', kind: 'value' },
-    { col: 6, field: 'parkingToTour', kind: 'value' },
-    { col: 7, field: 'tourOutline', kind: 'value' },
-    { col: 8, field: 'ageSuitability', kind: 'group', options: OPTS.fm.age },
-    { col: 9, field: 'clothingFootwear', kind: 'value' },
-    { col: 10, field: 'trails', kind: 'group', options: OPTS.fm.trails },
-    { col: 11, field: 'trails_plan', kind: 'plan' },
-    { col: 12, field: 'steepSteps', kind: 'group', options: OPTS.fm.steep },
-    { col: 13, field: 'steepSteps_plan', kind: 'plan' },
-    { col: 14, field: 'water', kind: 'group', options: OPTS.fm.water },
-    { col: 15, field: 'water_plan', kind: 'plan' },
-    { col: 16, field: 'animals', kind: 'group', options: OPTS.fm.animals },
-    { col: 17, field: 'animals_plan', kind: 'plan' },
-    { col: 18, field: 'machinery', kind: 'group', options: OPTS.fm.machinery },
-    { col: 19, field: 'machinery_plan', kind: 'plan' },
-    { col: 20, field: 'biosecurity', kind: 'group', options: OPTS.fm.biosecurity },
-    { col: 21, field: 'biosecurity_plan', kind: 'plan' },
-    { col: 22, field: 'other', kind: 'group', options: OPTS.fm.other },
-    { col: 23, field: 'other_plan', kind: 'plan' },
-    { col: 24, field: 'firstAid', kind: 'yesno' },
-    { col: 25, field: 'emergencyPlan', kind: 'value' },
-    { col: 28, field: 'siteVisit', kind: 'value' },
-  ],
+  farms: FARM_MAP,
+  lifestyle: FARM_MAP,
   builds: [],
 };
 

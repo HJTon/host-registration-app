@@ -18,7 +18,8 @@ const PROPERTY_TYPE_ICONS: Record<string, string> = {
 const HS_TYPE_META: Record<HSType, { icon: string; blurb: string }> = {
   backyards: { icon: '🏡', blurb: 'Gardens, community & school gardens' },
   builds: { icon: '🏗️', blurb: 'Builds & sustainable homes' },
-  farms: { icon: '🌾', blurb: 'Farms & lifestyle blocks' },
+  farms: { icon: '🌾', blurb: 'Farms & commercial growing' },
+  lifestyle: { icon: '🐄', blurb: 'Lifestyle blocks' },
 };
 
 export default function HealthSafetyLandingPage() {

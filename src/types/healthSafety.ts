@@ -4,16 +4,20 @@
 // encoded here as data so a single renderer (HSFormPage) can present all of
 // them, and so prefill mapping from last year's responses is mechanical.
 // Wording and options are transcribed verbatim from the published forms.
+//
+// Note: Lifestyle Blocks have their own form (a Farms copy with reworded copy)
+// per the 2026 coordinator review.
 
-import { getTrailCategory } from '../utils/category';
+export type HSType = 'backyards' | 'builds' | 'farms' | 'lifestyle';
 
-export type HSType = 'backyards' | 'builds' | 'farms';
-
-// Resolve a registration property type to its H&S form.
-// Reuses the existing trail-category mapping, so lifestyle blocks → farms.
+// Resolve a registration property type to its H&S form. Lifestyle blocks have
+// their own form (per the 2026 coordinator review); everything else maps to its
+// trail type.
 export function hsTypeForProperty(propertyType: string): HSType {
-  const trail = getTrailCategory(propertyType);
-  return (trail || 'backyards') as HSType;
+  if (propertyType === 'lifestyle-block') return 'lifestyle';
+  if (propertyType === 'build') return 'builds';
+  if (propertyType === 'farm') return 'farms';
+  return 'backyards'; // private-property, community-garden, school-garden
 }
 
 // ── Section model ────────────────────────────────────────────────────────────
@@ -86,8 +90,24 @@ export interface HSSchema {
 
 // ── Shared snippets ──────────────────────────────────────────────────────────
 
+// Appended to every first-aid question (2026 coordinator review).
+const FIRST_AID_NO_NOTE = ' If you choose No, that indicates Sustainable Taranaki will need to provide one.';
+
 const FIRST_AID_HELP =
-  "If not, and you're unable to borrow one for the week, please let us know. In the event of a serious injury you will call 111, then contact the Trails Co-coordinator as soon as practical. Contact details will be in your host pack.";
+  "If not, and you're unable to borrow one for the week, please let us know. In the event of a serious injury you will call 111, then contact the Trails Co-coordinator as soon as practical. Contact details will be in your host pack." +
+  FIRST_AID_NO_NOTE;
+
+// "Concerns or Questions" free-text — replaces the old site-visit question on
+// every form (2026 coordinator review).
+const CONCERNS_HELP =
+  'If you have any health and safety concerns or questions, let us know here or reach out to Mieke 021 022 39323, Suzy 021 566 185 or Jen 021 125 1727.';
+
+const CONCERNS_SECTION = {
+  kind: 'paragraph' as const,
+  id: 'concerns',
+  label: 'Concerns or Questions',
+  help: CONCERNS_HELP,
+};
 
 // ── Backyards ────────────────────────────────────────────────────────────────
 
@@ -181,12 +201,7 @@ const BACKYARDS: HSSchema = {
         'In the event of an incident occurring on my property, I agree to complete an incident form (to be provided to all hosts) and notify the Taranaki Sustainable Backyards Co-coordinator.',
       ],
     },
-    {
-      kind: 'paragraph',
-      id: 'siteVisit',
-      label: 'If you are a new host, have you had a site visit from Mieke to ensure your property meets health and safety requirements?',
-      help: 'If not, please indicate which days / times suit for a visit in the next few weeks.',
-    },
+    CONCERNS_SECTION,
   ],
 };
 
@@ -198,12 +213,6 @@ const BUILDS: HSSchema = {
   blurb:
     'This simple risk assessment helps Builds hosts keep people safe during visits on the Trail. Think about potential risks of having visitors on site and how to minimise, isolate or eliminate them. A health and safety sign will be in your host pack. Mieke, Suzy or an ST representative will aim to visit and walk through the build ahead of the Trail.',
   sections: [
-    {
-      kind: 'paragraph',
-      id: 'tourOutline',
-      label: 'Your tour(s)',
-      help: 'Complete for EACH tour (if doing more than one): tour name, maximum capacity, and for each major location — the location, approximate time there, and your talking points. If you prefer to talk the outline through with Jen, she can note-take and update.',
-    },
     {
       kind: 'hazard',
       id: 'parking',
@@ -283,12 +292,7 @@ const BUILDS: HSSchema = {
         'Sustainable Taranaki has offered to assist me, the property owner, to identify hazards and mitigate risks to the public.',
       ],
     },
-    {
-      kind: 'paragraph',
-      id: 'siteVisit',
-      label: 'Health and safety site visit — from Mieke or a Sustainable Trails team member',
-      help: 'If you haven’t had a site visit, please indicate which days / times suit for a visit in the next few weeks (not Thursday if possible).',
-    },
+    CONCERNS_SECTION,
   ],
 };
 
@@ -315,12 +319,6 @@ const FARMS: HSSchema = {
       help: 'Basic instructions can be sent in a ‘Before you visit’ email, but signage or a volunteer may be necessary. What is your plan for managing risk for people moving between parking and the start/end of the tour?',
     },
     {
-      kind: 'paragraph',
-      id: 'tourOutline',
-      label: 'Outline of tour/s',
-      help: 'Complete for EACH tour: tour name, maximum capacity, and for each major location — the location, approximate time, talking points, what visitors will be doing, and the pathway to the next location. If you prefer to talk the outline through with Tessa, she can note-take and update.',
-    },
-    {
       kind: 'checkboxOnly',
       id: 'ageSuitability',
       label: 'Suitability for age groups',
@@ -343,7 +341,7 @@ const FARMS: HSSchema = {
       kind: 'hazard',
       id: 'trails',
       label: 'Trails, paths and surfaces',
-      help: 'Think about pathways between locations and at locations. Are any of the following relevant to your tour/s?',
+      help: 'Think about pathways between and at tour locations. Are any of the following relevant to your tour/s?',
       options: [
         'Slippery surfaces',
         'Uneven surfaces eg paddocks, no steps on slopes, protruding roots',
@@ -360,7 +358,7 @@ const FARMS: HSSchema = {
       kind: 'hazard',
       id: 'steepSteps',
       label: 'Steep steps, slopes and drop-offs',
-      help: 'Think about pathways between locations and at locations. Are any of the following relevant?',
+      help: 'Think about pathways between and at tour locations. Are any of the following relevant?',
       options: ['Drop off greater than 1m that is not fenced', 'Unexpected drop-offs', 'Steep steps without handrails', 'None', 'Other'],
       planLabel: 'What is your plan for minimising or avoiding each hazard identified above?',
       planHelp: 'e.g. No handrail next to a steep drop off — rope off the area; make a ‘beware of drop’ sign; explain on arrival.',
@@ -369,7 +367,7 @@ const FARMS: HSSchema = {
       kind: 'hazard',
       id: 'water',
       label: 'Water hazards',
-      help: 'Think about pathways between locations and at locations. Are any of the following relevant?',
+      help: 'Think about pathways between and at tour locations. Are any of the following relevant?',
       options: ['Accessible lakes or ponds', 'Accessible rivers or streams', 'None', 'Other'],
       planLabel: 'What is the plan for minimising or avoiding for each hazard identified above?',
       planHelp:
@@ -379,11 +377,12 @@ const FARMS: HSSchema = {
       kind: 'hazard',
       id: 'animals',
       label: 'Animals, livestock & animal related equipment',
-      help: 'Think about pathways between locations and at locations. Are any of the following relevant?',
+      help: 'Think about pathways between and at tour locations. Are any of the following relevant?',
       options: [
         'Animals roaming',
         'Accessible platforms or equipment used with animals',
         'Disease passed from touching of animals',
+        'None',
         'Other',
       ],
       planLabel: 'What is the plan for minimising or avoiding for each hazard identified above?',
@@ -394,7 +393,7 @@ const FARMS: HSSchema = {
       kind: 'hazard',
       id: 'machinery',
       label: 'Machinery and chemicals',
-      help: 'Think about pathways between locations and at locations. Are any of the following relevant?',
+      help: 'Think about pathways between and at tour locations. Are any of the following relevant?',
       options: [
         'Machinery in operation',
         'Crushing hazards',
@@ -415,7 +414,7 @@ const FARMS: HSSchema = {
       options: [
         'Risk of disease or invasive species from outside farm transferred to livestock',
         'Risk of disease or invasive species from outside farm transferred to plant species',
-        'None.',
+        'None',
         'Other',
       ],
       planLabel: 'What is the plan for minimising or avoiding each BIOSECURITY hazard identified above?',
@@ -426,7 +425,7 @@ const FARMS: HSSchema = {
       kind: 'hazard',
       id: 'other',
       label: 'Are there any OTHER potential hazards?',
-      help: 'Think about pathways between locations and at locations. Are any of the following relevant?',
+      help: 'Think about pathways between and at tour locations. Are any of the following relevant?',
       options: ['Low hanging or exposed power lines', 'Accessible farm rubbish', 'None', 'Other'],
       planLabel: 'What is the plan for minimising or avoiding for each hazard identified above?',
       planHelp: 'e.g. Rubbish and equipment stored away.',
@@ -435,7 +434,7 @@ const FARMS: HSSchema = {
       kind: 'yesno',
       id: 'firstAid',
       label: 'Is there a first aid kit accessible on the property?',
-      help: "If not, and you're unable to borrow one for the tour, please let us know — you will need to arrange pick up. In the event of a serious injury you will call 111, then contact the Sustainable Trails Co-coordinator as soon as practical.",
+      help: "If not, and you're unable to borrow one for the tour, please let us know — you will need to arrange pick up. In the event of a serious injury you will call 111, then contact the Sustainable Trails Co-coordinator as soon as practical." + FIRST_AID_NO_NOTE,
       yesLabel: 'Yes',
       noLabel: 'No, I will arrange to pick up from Sustainable Taranaki.',
     },
@@ -461,19 +460,49 @@ const FARMS: HSSchema = {
         'Public liability insurance is not required but recommended.',
       ],
     },
-    {
-      kind: 'paragraph',
-      id: 'siteVisit',
-      label: 'Site visit',
-      help: 'Please suggest times in the next month for Mieke to make a site visit to run through the tour, your risk mitigation strategies, and general tips for providing an engaging tour.',
-    },
+    CONCERNS_SECTION,
   ],
+};
+
+// ── Lifestyle Blocks ─────────────────────────────────────────────────────────
+// Its own form (2026 coordinator review): the Farms schema with "Farm" copy
+// reworded to "Lifestyle Block". Field ids stay identical to Farms so the
+// renderer, prefill and sheet columns reuse the same structure.
+
+function lifestyleSection(section: HSSection): HSSection {
+  if (section.kind === 'checkboxOnly' && section.id === 'ageSuitability') {
+    return {
+      ...section,
+      help: 'Lifestyle Block tours will not necessarily be suitable for all age groups. Is your tour/activity suitable for the below?',
+    };
+  }
+  if (section.kind === 'acknowledgement') {
+    return {
+      ...section,
+      label: 'By participating in the 2026 Sustainable Lifestyle Block Trail I acknowledge:',
+      intro:
+        'Lifestyle Block owners must ensure that work areas on the lifestyle block are safe and don’t pose a risk to the health and safety of any person. People visiting a lifestyle block have a responsibility to take reasonable care that their actions (or lack of action) do not put themselves or others at risk, and must comply with any reasonable instruction given by the owner (Worksafe guide: Farm visitors & events).',
+      clauses: section.clauses.map(c =>
+        c.replace('participation in the Sustainable Farms Trail.', 'participation in the Sustainable Lifestyle Block Trail.'),
+      ),
+    };
+  }
+  return section;
+}
+
+const LIFESTYLE: HSSchema = {
+  type: 'lifestyle',
+  title: 'Lifestyle Block Host Health & Safety Assessment 2026',
+  blurb:
+    'This risk assessment supports LIFESTYLE BLOCK HOSTS to keep visitors safe during their visit to your Lifestyle Block. The purpose is to identify hazards and risks of touring visitors, assess how likely each risk is and how severe the harm would be, and implement reasonably practical measures to manage risk.',
+  sections: FARMS.sections.map(lifestyleSection),
 };
 
 export const HS_SCHEMAS: Record<HSType, HSSchema> = {
   backyards: BACKYARDS,
   builds: BUILDS,
   farms: FARMS,
+  lifestyle: LIFESTYLE,
 };
 
 export function getHSSchema(type: HSType): HSSchema {
@@ -533,4 +562,5 @@ export const HS_TYPE_LABELS: Record<HSType, string> = {
   backyards: 'Backyards',
   builds: 'Builds',
   farms: 'Farms',
+  lifestyle: 'Lifestyle Blocks',
 };

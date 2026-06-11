@@ -106,6 +106,7 @@ function HSTab() {
             <option value="backyards">Backyards</option>
             <option value="builds">Builds</option>
             <option value="farms">Farms</option>
+            <option value="lifestyle">Lifestyle Blocks</option>
           </select>
         </label>
         <label className="flex items-center gap-2 text-[13px] text-ink-soft">

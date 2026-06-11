@@ -7,7 +7,7 @@
 //   plan  → the paired mitigation paragraph stored at `${id}_plan`
 //   value → a plain string field (yesno / shortText / paragraph)
 
-export type HSType = 'backyards' | 'builds' | 'farms';
+export type HSType = 'backyards' | 'builds' | 'farms' | 'lifestyle';
 export type HSFieldValue = string | string[];
 
 export interface HSSubmitBody {
@@ -41,34 +41,13 @@ function hazard(id: string, header: string): ColumnSpec[] {
   ];
 }
 
-export const HS_COLUMNS: Record<HSType, ColumnSpec[]> = {
-  backyards: [
-    ...hazard('parking', 'Parking & Vehicles'),
-    ...hazard('paths', 'Paths & Surfaces'),
-    ...hazard('steps', 'Steps, Handrails & Drop-offs'),
-    ...hazard('water', 'Water Hazards'),
-    ...hazard('other', 'Other Hazards'),
-    { header: 'First Aid Kit', id: 'firstAid', kind: 'value' },
-    { header: 'Emergency Evacuation Point', id: 'evacPoint', kind: 'value' },
-    { header: 'Emergency Vehicle Access', id: 'vehicleAccess', kind: 'value' },
-    { header: 'New Host Site Visit', id: 'siteVisit', kind: 'value' },
-  ],
-  builds: [
-    { header: 'Tour Outline', id: 'tourOutline', kind: 'value' },
-    ...hazard('parking', 'Parking & Vehicles'),
-    ...hazard('paths', 'Outside Paths & Surfaces'),
-    ...hazard('steps', 'Steps, Handrails & Drop-offs'),
-    ...hazard('other', 'Other Hazards'),
-    { header: 'First Aid Kit', id: 'firstAid', kind: 'value' },
-    { header: 'Emergency Evacuation Point', id: 'evacPoint', kind: 'value' },
-    { header: 'Emergency Vehicle Access', id: 'vehicleAccess', kind: 'value' },
-    { header: 'Site Visit', id: 'siteVisit', kind: 'value' },
-  ],
-  farms: [
+// Farms and Lifestyle share the same column layout (Lifestyle is a reworded
+// copy of Farms with identical field ids).
+function FARM_COLUMNS(): ColumnSpec[] {
+  return [
     { header: 'Parking & Capacity', id: 'parking', kind: 'group' },
     { header: 'Vehicle Capacity', id: 'vehicleCapacity', kind: 'value' },
     { header: 'Parking to Tour Plan', id: 'parkingToTour', kind: 'value' },
-    { header: 'Tour Outline', id: 'tourOutline', kind: 'value' },
     { header: 'Age Suitability', id: 'ageSuitability', kind: 'group' },
     { header: 'Clothing & Footwear', id: 'clothingFootwear', kind: 'value' },
     ...hazard('trails', 'Trails, Paths & Surfaces'),
@@ -80,8 +59,34 @@ export const HS_COLUMNS: Record<HSType, ColumnSpec[]> = {
     ...hazard('other', 'Other Hazards'),
     { header: 'First Aid Kit', id: 'firstAid', kind: 'value' },
     { header: 'Emergency Plan', id: 'emergencyPlan', kind: 'value' },
-    { header: 'Site Visit', id: 'siteVisit', kind: 'value' },
+    { header: 'Concerns or Questions', id: 'concerns', kind: 'value' },
+  ];
+}
+
+export const HS_COLUMNS: Record<HSType, ColumnSpec[]> = {
+  backyards: [
+    ...hazard('parking', 'Parking & Vehicles'),
+    ...hazard('paths', 'Paths & Surfaces'),
+    ...hazard('steps', 'Steps, Handrails & Drop-offs'),
+    ...hazard('water', 'Water Hazards'),
+    ...hazard('other', 'Other Hazards'),
+    { header: 'First Aid Kit', id: 'firstAid', kind: 'value' },
+    { header: 'Emergency Evacuation Point', id: 'evacPoint', kind: 'value' },
+    { header: 'Emergency Vehicle Access', id: 'vehicleAccess', kind: 'value' },
+    { header: 'Concerns or Questions', id: 'concerns', kind: 'value' },
   ],
+  builds: [
+    ...hazard('parking', 'Parking & Vehicles'),
+    ...hazard('paths', 'Outside Paths & Surfaces'),
+    ...hazard('steps', 'Steps, Handrails & Drop-offs'),
+    ...hazard('other', 'Other Hazards'),
+    { header: 'First Aid Kit', id: 'firstAid', kind: 'value' },
+    { header: 'Emergency Evacuation Point', id: 'evacPoint', kind: 'value' },
+    { header: 'Emergency Vehicle Access', id: 'vehicleAccess', kind: 'value' },
+    { header: 'Concerns or Questions', id: 'concerns', kind: 'value' },
+  ],
+  farms: FARM_COLUMNS(),
+  lifestyle: FARM_COLUMNS(),
 };
 
 const LEADING_HEADERS = [
@@ -100,6 +105,7 @@ export function getHSTabName(hsType: HSType): string {
   switch (hsType) {
     case 'builds': return 'H&S Builds';
     case 'farms': return 'H&S Farms';
+    case 'lifestyle': return 'H&S Lifestyle Blocks';
     default: return 'H&S Backyards';
   }
 }

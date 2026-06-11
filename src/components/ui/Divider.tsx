@@ -15,15 +15,16 @@ interface DividerProps {
 export default function Divider({ label, sublabel, className = '' }: DividerProps) {
   return (
     <div className={['flex items-center gap-3', className].join(' ')}>
-      <div className="flex items-baseline gap-2 shrink-0">
-        <span className="font-display text-[14px] sm:text-[16px] text-brand-green-ink">
+      {/* min-w-0 + break-words lets long headings wrap instead of overflowing */}
+      <div className="flex items-baseline gap-2 min-w-0">
+        <span className="font-display text-[14px] sm:text-[16px] text-brand-green-ink break-words">
           {label}
         </span>
         {sublabel && (
-          <span className="italic text-[12px] text-ink-soft">{sublabel}</span>
+          <span className="italic text-[12px] text-ink-soft shrink-0">{sublabel}</span>
         )}
       </div>
-      <span aria-hidden className="flex-1 h-px bg-line" />
+      <span aria-hidden className="flex-1 h-px bg-line shrink-0" />
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { BrandHeader, Card, Btn, Divider, Field, Input, Textarea } from '../comp
 import { getCategoryTheme } from '../utils/category';
 
 function isValidHSType(t: string | null): t is HSType {
-  return t === 'backyards' || t === 'builds' || t === 'farms';
+  return t === 'backyards' || t === 'builds' || t === 'farms' || t === 'lifestyle';
 }
 
 // ── Checkbox group (hazard / checkboxOnly) ───────────────────────────────────

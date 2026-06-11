@@ -5,6 +5,7 @@ import type { HSType } from '../types/healthSafety';
 import { HS_TYPE_LABELS } from '../types/healthSafety';
 import {
   fetchHSList, dashboardLogin, getDashboardKey, clearDashboardKey,
+  withdrawHost, restoreHost,
   DashboardAuthError, type DashboardHost, type HSCounts,
 } from '../utils/dashboardApi';
 import { BrandHeader, Card, Btn, Divider, Field, Input, CategoryChip } from '../components/ui';
@@ -48,6 +49,8 @@ function HSTab() {
   const [error, setError] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [showHidden, setShowHidden] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -59,13 +62,29 @@ function HSTab() {
   };
   useEffect(load, []);
 
+  // Hidden (withdrawn) properties are excluded unless "Show hidden" is on.
   const filtered = useMemo(
     () => hosts.filter(h =>
+      (showHidden || !h.withdrawn) &&
       (typeFilter === 'all' || h.hsType === typeFilter) &&
       (statusFilter === 'all' || h.status === statusFilter)
     ),
-    [hosts, typeFilter, statusFilter],
+    [hosts, typeFilter, statusFilter, showHidden],
   );
+
+  const toggleWithdrawn = async (h: DashboardHost) => {
+    if (!h.regId) return;
+    setBusyId(h.regId);
+    try {
+      if (h.withdrawn) await restoreHost(h.regId);
+      else await withdrawHost(h.regId, h.propertyName);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Action failed');
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   if (loading) return <p className="meta mt-4">Loading hosts…</p>;
   if (error) return (
@@ -90,6 +109,14 @@ function HSTab() {
                 {HS_TYPE_LABELS[t]}: <span className="font-semibold text-ink">{counts.byType[t].done}/{counts.byType[t].total}</span>
               </div>
             ))}
+          {counts.withdrawn > 0 && (
+            <button
+              onClick={() => setShowHidden(s => !s)}
+              className="bg-cream-soft border border-line rounded-full px-3 py-1.5 text-[13px] text-ink-soft hover:border-brand-green transition-colors"
+            >
+              {showHidden ? 'Hide hidden' : `Show hidden (${counts.withdrawn})`}
+            </button>
+          )}
         </div>
       )}
 
@@ -128,12 +155,16 @@ function HSTab() {
       <div className="flex flex-col gap-2.5">
         {filtered.length === 0 && <p className="meta">No hosts match these filters.</p>}
         {filtered.map((h, i) => (
-          <Card key={`${h.regId || h.email}-${i}`} className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <Card key={`${h.regId || h.email}-${i}`} className={`flex flex-col sm:flex-row sm:items-center gap-3 ${h.withdrawn ? 'opacity-60' : ''}`}>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="font-semibold text-ink truncate">{h.propertyName || h.hostNames || 'Unnamed property'}</p>
                 {h.propertyType && <CategoryChip propertyType={h.propertyType} size="sm" />}
-                <StatusBadge status={h.status} />
+                {h.withdrawn ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-line text-ink-soft">Hidden</span>
+                ) : (
+                  <StatusBadge status={h.status} />
+                )}
               </div>
               <p className="text-xs text-ink-soft mt-0.5">
                 {h.hostNames}
@@ -148,10 +179,20 @@ function HSTab() {
                 )}
               </div>
             </div>
-            <div className="shrink-0">
-              {h.status === 'done' && h.hsSubmissionId && (
+            <div className="shrink-0 flex items-center gap-2">
+              {!h.withdrawn && h.status === 'done' && h.hsSubmissionId && (
                 <Btn size="sm" variant="primary" onClick={() => navigate(`/dashboard/plan?id=${encodeURIComponent(h.hsSubmissionId)}`)}>
                   View plan
+                </Btn>
+              )}
+              {h.regId && (
+                <Btn
+                  size="sm"
+                  variant="ghost"
+                  disabled={busyId === h.regId}
+                  onClick={() => toggleWithdrawn(h)}
+                >
+                  {busyId === h.regId ? '…' : h.withdrawn ? 'Restore' : 'Hide'}
                 </Btn>
               )}
             </div>

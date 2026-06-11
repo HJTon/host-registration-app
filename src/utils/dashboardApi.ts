@@ -30,11 +30,13 @@ export interface DashboardHost {
   signedBy: string;
   signedAt: string;
   hsSubmissionId: string;
+  withdrawn: boolean;
 }
 
 export interface HSCounts {
   total: number;
   done: number;
+  withdrawn: number;
   byType: Record<HSType, { total: number; done: number }>;
 }
 
@@ -64,4 +66,12 @@ export async function fetchHSList(): Promise<{ hosts: DashboardHost[]; counts: H
 
 export async function fetchHSRecord(submissionId: string): Promise<{ found: boolean; response?: HSResponse }> {
   return call('hs-record', { submissionId });
+}
+
+// Hide a property from the active list (shared across coordinators via the sheet).
+export async function withdrawHost(regId: string, propertyName: string): Promise<void> {
+  await call('hs-withdraw', { regId, propertyName });
+}
+export async function restoreHost(regId: string): Promise<void> {
+  await call('hs-restore', { regId });
 }

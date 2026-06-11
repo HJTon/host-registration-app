@@ -18,7 +18,8 @@ function getSheets() {
   const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '{}');
   const auth = new google.auth.GoogleAuth({
     credentials,
-    scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+    // read/write — the dashboard maintains the "Withdrawn Properties" tab
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
   return google.sheets({ version: 'v4', auth });
 }
@@ -27,6 +28,45 @@ function getSheets() {
 const REGISTRATION_TABS = [
   'Backyards', 'Community Gardens', 'School Gardens', 'Builds', 'Farms', 'Lifestyle Blocks',
 ];
+
+// Coordinators can "hide" a property (e.g. withdrawn / stale) without deleting
+// its registration row. The hidden set lives in this tab, keyed by registration
+// Submission ID, so it is shared across all coordinators.
+const WITHDRAWN_TAB = 'Withdrawn Properties';
+const WITHDRAWN_HEADERS = ['Registration ID', 'Property Name', 'Withdrawn At'];
+
+async function ensureTab(
+  sheets: ReturnType<typeof getSheets>,
+  spreadsheetId: string,
+  tabName: string,
+  headers: string[],
+): Promise<void> {
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  if (meta.data.sheets?.some(s => s.properties?.title === tabName)) return;
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: { requests: [{ addSheet: { properties: { title: tabName } } }] },
+  });
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `'${tabName}'!A1`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: { values: [headers] },
+  });
+}
+
+async function readWithdrawnSet(
+  sheets: ReturnType<typeof getSheets>,
+  spreadsheetId: string,
+): Promise<Set<string>> {
+  try {
+    const res = await sheets.spreadsheets.values.get({ spreadsheetId, range: `'${WITHDRAWN_TAB}'!A2:A` });
+    const ids = (res.data.values ?? []).map(r => String(r[0] ?? '').trim()).filter(Boolean);
+    return new Set(ids);
+  } catch {
+    return new Set(); // tab doesn't exist yet
+  }
+}
 const HS_TABS: Record<HSType, string> = {
   backyards: getHSTabName('backyards'),
   builds: getHSTabName('builds'),
@@ -104,13 +144,14 @@ interface HostRow {
   signedBy: string;
   signedAt: string;
   hsSubmissionId: string;
+  withdrawn: boolean;
 }
 
 export default async (request: Request, _context: Context) => {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
   if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
-  let body: { password?: string; action?: string; submissionId?: string };
+  let body: { password?: string; action?: string; submissionId?: string; regId?: string; propertyName?: string };
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -144,9 +185,46 @@ export default async (request: Request, _context: Context) => {
       return json({ found: false });
     }
 
+    if (action === 'hs-withdraw') {
+      if (!body.regId) return json({ error: 'Missing regId' }, 400);
+      await ensureTab(sheets, spreadsheetId, WITHDRAWN_TAB, WITHDRAWN_HEADERS);
+      const already = await readWithdrawnSet(sheets, spreadsheetId);
+      if (!already.has(body.regId)) {
+        await sheets.spreadsheets.values.append({
+          spreadsheetId,
+          range: `'${WITHDRAWN_TAB}'!A:A`,
+          valueInputOption: 'USER_ENTERED',
+          insertDataOption: 'INSERT_ROWS',
+          requestBody: { values: [[body.regId, body.propertyName || '', new Date().toISOString()]] },
+        });
+      }
+      return json({ ok: true });
+    }
+
+    if (action === 'hs-restore') {
+      if (!body.regId) return json({ error: 'Missing regId' }, 400);
+      const res = await sheets.spreadsheets.values.get({ spreadsheetId, range: `'${WITHDRAWN_TAB}'!A2:C` }).catch(() => null);
+      const rows = (res?.data.values as string[][] | undefined) ?? [];
+      const kept = rows.filter(r => String(r[0] ?? '').trim() !== body.regId);
+      // Rewrite the data range: clear then write the survivors.
+      await sheets.spreadsheets.values.clear({ spreadsheetId, range: `'${WITHDRAWN_TAB}'!A2:C` });
+      if (kept.length > 0) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `'${WITHDRAWN_TAB}'!A2`,
+          valueInputOption: 'USER_ENTERED',
+          requestBody: { values: kept },
+        });
+      }
+      return json({ ok: true });
+    }
+
     if (action === 'hs-list') {
       const wanted = [...REGISTRATION_TABS, ...Object.values(HS_TABS)];
-      const data = await fetchTabs(sheets, spreadsheetId, wanted);
+      const [data, withdrawnSet] = await Promise.all([
+        fetchTabs(sheets, spreadsheetId, wanted),
+        readWithdrawnSet(sheets, spreadsheetId),
+      ]);
 
       // Index H&S records by registration id and by email+type.
       interface HSIndexEntry { hsType: HSType; submissionId: string; signedBy: string; signedAt: string; acknowledged: boolean; }
@@ -198,24 +276,27 @@ export default async (request: Request, _context: Context) => {
             signedBy: hs?.signedBy ?? '',
             signedAt: hs?.signedAt ?? '',
             hsSubmissionId: hs?.submissionId ?? '',
+            withdrawn: !!regId && withdrawnSet.has(regId),
           });
         }
       }
 
-      // Counts overall + per H&S type.
+      // Counts cover active (non-withdrawn) properties only.
+      const active = hosts.filter(h => !h.withdrawn);
       const byType: Record<HSType, { total: number; done: number }> = {
         backyards: { total: 0, done: 0 },
         builds: { total: 0, done: 0 },
         farms: { total: 0, done: 0 },
         lifestyle: { total: 0, done: 0 },
       };
-      for (const h of hosts) {
+      for (const h of active) {
         byType[h.hsType].total += 1;
         if (h.status === 'done') byType[h.hsType].done += 1;
       }
       const counts = {
-        total: hosts.length,
-        done: hosts.filter(h => h.status === 'done').length,
+        total: active.length,
+        done: active.filter(h => h.status === 'done').length,
+        withdrawn: hosts.length - active.length,
         byType,
       };
 

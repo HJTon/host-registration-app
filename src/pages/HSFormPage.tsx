@@ -10,6 +10,18 @@ function isValidHSType(t: string | null): t is HSType {
   return t === 'backyards' || t === 'builds' || t === 'farms' || t === 'lifestyle';
 }
 
+// Fetch last year's answers for an email; returns the field map or null.
+async function fetchPrefill(hsType: HSType, email: string): Promise<Record<string, HSFieldValue> | null> {
+  try {
+    const res = await fetch(`/.netlify/functions/hs-prefill?type=${hsType}&email=${encodeURIComponent(email)}`);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { found?: boolean; fields?: Record<string, HSFieldValue> };
+    return data?.found && data.fields ? data.fields : null;
+  } catch {
+    return null;
+  }
+}
+
 // ── Checkbox group (hazard / checkboxOnly) ───────────────────────────────────
 function CheckboxGroup({
   options,
@@ -96,6 +108,11 @@ export default function HSFormPage() {
   const [prefillNote, setPrefillNote] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // "Different email last year" lookup
+  const [showAlt, setShowAlt] = useState(false);
+  const [altEmail, setAltEmail] = useState('');
+  const [altBusy, setAltBusy] = useState(false);
+  const [altError, setAltError] = useState<string | null>(null);
 
   // ── Prefill from last year's responses (returning hosts) ─────────────────────
   useEffect(() => {
@@ -104,17 +121,31 @@ export default function HSFormPage() {
     if (existing || !lookupEmail) return;
     let cancelled = false;
     setPrefilling(true);
-    fetch(`/.netlify/functions/hs-prefill?type=${hsType}&email=${encodeURIComponent(lookupEmail)}`)
-      .then(res => (res.ok ? res.json() : null))
-      .then((data: { found?: boolean; fields?: Record<string, HSFieldValue> } | null) => {
-        if (cancelled || !data?.found || !data.fields) return;
-        setFields(prev => ({ ...prev, ...data.fields }));
+    fetchPrefill(hsType, lookupEmail)
+      .then(fields => {
+        if (cancelled || !fields) return;
+        setFields(prev => ({ ...prev, ...fields }));
         setPrefillNote('We’ve pre-filled your answers from last year — please review and update for any changes this year.');
       })
-      .catch(() => {/* degrade gracefully — blank form */})
       .finally(() => { if (!cancelled) setPrefilling(false); });
     return () => { cancelled = true; };
   }, [existing, registration, hsType]);
+
+  const handleAltLookup = async () => {
+    const lookup = altEmail.trim();
+    if (!lookup) return;
+    setAltBusy(true);
+    setAltError(null);
+    const fields = await fetchPrefill(hsType, lookup);
+    setAltBusy(false);
+    if (fields) {
+      setFields(prev => ({ ...prev, ...fields }));
+      setPrefillNote(`We’ve pulled your answers from last year (using ${lookup}) — please review and update for any changes this year.`);
+      setShowAlt(false);
+    } else {
+      setAltError(`No ${HS_TYPE_LABELS[hsType]} answers found for ${lookup} last year.`);
+    }
+  };
 
   // ── Field updates ────────────────────────────────────────────────────────────
   const setField = (id: string, value: HSFieldValue) =>
@@ -222,6 +253,39 @@ export default function HSFormPage() {
             <Input id="hs-addr" value={propertyAddress} onChange={e => setPropertyAddress(e.target.value)} />
           </Field>
         </div>
+
+        {/* Pull last year's answers when the host used a different email */}
+        {!existing && (
+          <div className="mt-4 pt-4 border-t border-line">
+            {!showAlt ? (
+              <button
+                type="button"
+                onClick={() => setShowAlt(true)}
+                className="text-[13px] text-brand-green-deep hover:underline text-left"
+              >
+                Filled this in last year under a different email? Pull those answers →
+              </button>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <p className="text-[13px] text-ink-soft">
+                  Enter the email you used last year and we’ll bring those answers in.
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    value={altEmail}
+                    onChange={e => setAltEmail(e.target.value)}
+                    placeholder="name@example.com"
+                  />
+                  <Btn size="md" variant="primary" onClick={handleAltLookup} disabled={altBusy || !altEmail.trim()}>
+                    {altBusy ? '…' : 'Look up'}
+                  </Btn>
+                </div>
+                {altError && <p className="text-[12px] text-danger">{altError}</p>}
+              </div>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* Schema-driven sections */}

@@ -111,10 +111,13 @@ async function resolveDocsFolderId(drive: Drive): Promise<string | null> {
   return getOrCreateSubfolder(drive, photosFolder, DOCS_SUBFOLDER);
 }
 
+type DocKind = 'proof' | 'info';
+
 interface DocItem {
   id: string;
   title: string;
   filename: string;
+  kind: DocKind;
   webViewLink: string;
   downloadLink: string;
   sizeBytes: number;
@@ -131,6 +134,7 @@ export default async (request: Request, _context: Context) => {
     filename?: string;
     title?: string;
     size?: number;
+    kind?: string;
     id?: string;
     uploadUrl?: string;
     chunk?: string;
@@ -197,7 +201,7 @@ export default async (request: Request, _context: Context) => {
       const res = await drive.files.list({
         q: `'${folderId}' in parents and mimeType='application/pdf' and trashed=false`,
         orderBy: 'createdTime desc',
-        fields: 'files(id,name,description,webViewLink,size,createdTime)',
+        fields: 'files(id,name,description,webViewLink,size,createdTime,appProperties)',
         supportsAllDrives: true,
         includeItemsFromAllDrives: true,
       });
@@ -205,6 +209,9 @@ export default async (request: Request, _context: Context) => {
         id: f.id!,
         title: f.description || f.name || 'Untitled document',
         filename: f.name || '',
+        // Files uploaded before document types existed are treated as proofs,
+        // which keeps the suggest-a-change option available for them.
+        kind: f.appProperties?.docKind === 'info' ? 'info' : 'proof',
         webViewLink: f.webViewLink || `https://drive.google.com/file/d/${f.id}/view`,
         downloadLink: `https://drive.google.com/uc?export=download&id=${f.id}`,
         sizeBytes: f.size ? Number(f.size) : 0,
@@ -216,7 +223,7 @@ export default async (request: Request, _context: Context) => {
     // Start a resumable upload session and hand the URL to the browser, which
     // PUTs the file bytes straight to Drive — bypassing Netlify's size limit.
     if (action === 'create-upload-session') {
-      const { filename, title, size } = body;
+      const { filename, title, size, kind } = body;
       if (!filename) return json({ error: 'Missing filename' }, 400);
 
       const safeName = pdfName(filename);
@@ -225,6 +232,7 @@ export default async (request: Request, _context: Context) => {
         description: (title || safeName).trim(),
         parents: [folderId],
         mimeType: 'application/pdf',
+        appProperties: { docKind: kind === 'info' ? 'info' : 'proof' },
       };
 
       const accessToken = await getAccessToken();

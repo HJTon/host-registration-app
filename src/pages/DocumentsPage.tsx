@@ -47,6 +47,45 @@ export default function DocumentsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const proofs = docs.filter(d => d.kind === 'proof');
+  const infos = docs.filter(d => d.kind === 'info');
+
+  const docRow = (doc: HostDocument, allowSuggest: boolean) => (
+    <div key={doc.id} className="rounded-[12px] border border-line bg-paper px-3.5 py-3">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex-1 min-w-0 flex items-start gap-2.5">
+          <span className="shrink-0 text-brand-green-deep" aria-hidden="true">📄</span>
+          <div className="min-w-0">
+            <p className="font-semibold text-ink">{doc.title}</p>
+            <p className="text-xs text-ink-soft mt-0.5">
+              PDF{doc.sizeBytes ? ` · ${formatBytes(doc.sizeBytes)}` : ''}
+              {doc.uploadedAt ? ` · added ${formatDate(doc.uploadedAt)}` : ''}
+            </p>
+          </div>
+        </div>
+        <div className="shrink-0 flex items-center gap-2">
+          <a href={doc.webViewLink} target="_blank" rel="noopener noreferrer">
+            <Btn size="sm" variant="ghost">View</Btn>
+          </a>
+          <a href={doc.downloadLink} target="_blank" rel="noopener noreferrer">
+            <Btn size="sm" variant="primary">Download</Btn>
+          </a>
+        </div>
+      </div>
+      {allowSuggest && (
+        <div className="mt-2 pt-2 border-t border-line/70">
+          <button
+            type="button"
+            onClick={() => setSuggestFor(doc)}
+            className="text-[13px] font-semibold text-brand-green-deep hover:underline"
+          >
+            ✎ Suggest a change to this proof
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="max-w-2xl mx-auto px-4 pb-12">
       <BrandHeader backTo="/" />
@@ -59,61 +98,44 @@ export default function DocumentsPage() {
         </h1>
       </div>
 
-      {/* Downloadable documents */}
-      <Card className="mb-4">
-        <Divider label="Documents & resources" className="mb-4" />
-        {loading ? (
-          <p className="meta">Loading documents…</p>
-        ) : docs.length > 0 ? (
-          <div className="flex flex-col gap-2.5">
-            {docs.map(doc => (
-              <div
-                key={doc.id}
-                className="rounded-[12px] border border-line bg-paper px-3.5 py-3"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex-1 min-w-0 flex items-start gap-2.5">
-                    <span className="shrink-0 text-brand-green-deep" aria-hidden="true">📄</span>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-ink">{doc.title}</p>
-                      <p className="text-xs text-ink-soft mt-0.5">
-                        PDF{doc.sizeBytes ? ` · ${formatBytes(doc.sizeBytes)}` : ''}
-                        {doc.uploadedAt ? ` · added ${formatDate(doc.uploadedAt)}` : ''}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="shrink-0 flex items-center gap-2">
-                    <a href={doc.webViewLink} target="_blank" rel="noopener noreferrer">
-                      <Btn size="sm" variant="ghost">View</Btn>
-                    </a>
-                    <a href={doc.downloadLink} target="_blank" rel="noopener noreferrer">
-                      <Btn size="sm" variant="primary">Download</Btn>
-                    </a>
-                  </div>
-                </div>
-                <div className="mt-2 pt-2 border-t border-line/70">
-                  <button
-                    type="button"
-                    onClick={() => setSuggestFor(doc)}
-                    className="text-[13px] font-semibold text-brand-green-deep hover:underline"
-                  >
-                    ✎ Suggest a change to this proof
-                  </button>
-                </div>
+      {loading ? (
+        <Card className="mb-4"><p className="meta">Loading documents…</p></Card>
+      ) : (
+        <>
+          {/* Proofs — please check and suggest changes */}
+          {proofs.length > 0 && (
+            <Card className="mb-4">
+              <Divider label="Proofs to check" sublabel="Tirohia" className="mb-2" />
+              <p className="text-[13px] text-ink-soft mb-4">
+                Please check that your details are correct on these proofs. If anything needs changing, tap
+                <span className="font-semibold"> Suggest a change</span> below it.
+              </p>
+              <div className="flex flex-col gap-2.5">
+                {proofs.map(doc => docRow(doc, true))}
               </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-[13px] text-ink-soft">
-            {failed
-              ? 'Documents are unavailable right now — please try again shortly.'
-              : 'More documents (information pack, guidelines, resources) will be added here closer to the event.'}
-          </p>
-        )}
-      </Card>
+            </Card>
+          )}
+
+          {/* General information documents — view / download only */}
+          <Card className="mb-4">
+            <Divider label="Documents & resources" sublabel="Pukapuka" className="mb-4" />
+            {infos.length > 0 ? (
+              <div className="flex flex-col gap-2.5">
+                {infos.map(doc => docRow(doc, false))}
+              </div>
+            ) : (
+              <p className="text-[13px] text-ink-soft">
+                {failed
+                  ? 'Documents are unavailable right now — please try again shortly.'
+                  : 'More documents (information pack, guidelines, resources) will be added here closer to the event.'}
+              </p>
+            )}
+          </Card>
+        </>
+      )}
 
       <Card className="mb-4">
-        <Divider label="Key deadlines" className="mb-4" />
+        <Divider label="Key dates" sublabel="Ngā rā" className="mb-4" />
         <div className="space-y-3">
           {KEY_DEADLINES.map((item, i) => (
             <div key={i} className="flex gap-3 text-[14px]">

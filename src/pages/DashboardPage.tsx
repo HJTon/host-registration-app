@@ -9,7 +9,7 @@ import {
   DashboardAuthError, type DashboardHost, type HSCounts,
 } from '../utils/dashboardApi';
 import {
-  listDocuments, uploadDocument, deleteDocument, type HostDocument,
+  listDocuments, uploadDocument, deleteDocument, type HostDocument, type DocKind,
 } from '../utils/documentsApi';
 import { BrandHeader, Card, Btn, Divider, Field, Input, CategoryChip } from '../components/ui';
 
@@ -225,6 +225,7 @@ function DocumentsTab() {
 
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
+  const [kind, setKind] = useState<DocKind>('proof');
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -264,7 +265,7 @@ function DocumentsTab() {
     setProgress(0);
     setUploadError(null);
     try {
-      await uploadDocument(file, title.trim() || file.name, f => setProgress(f));
+      await uploadDocument(file, title.trim() || file.name, kind, f => setProgress(f));
       setFile(null);
       setTitle('');
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -302,6 +303,33 @@ function DocumentsTab() {
           directly to Drive.
         </p>
         <form onSubmit={handleUpload} className="flex flex-col gap-3">
+          <fieldset>
+            <legend className="text-[13px] font-semibold text-ink mb-2">Document type</legend>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {([
+                { id: 'proof', label: 'Proof to check', desc: 'Hosts can suggest changes' },
+                { id: 'info', label: 'Information', desc: 'View / download only' },
+              ] as const).map(opt => {
+                const selected = kind === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setKind(opt.id)}
+                    className={[
+                      'flex flex-col items-start text-left px-3 py-2 rounded-[10px] border transition-colors',
+                      selected
+                        ? 'border-brand-green bg-brand-green-soft text-brand-green-deep'
+                        : 'border-line bg-paper text-ink-soft hover:border-brand-green/40',
+                    ].join(' ')}
+                  >
+                    <span className="text-sm font-semibold">{opt.label}</span>
+                    <span className="text-[12px] text-ink-soft">{opt.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
           <Field label="Title" htmlFor="doc-title" hint="Shown to hosts as the document name.">
             <Input
               id="doc-title"
@@ -357,7 +385,14 @@ function DocumentsTab() {
             {docs.map(doc => (
               <Card key={doc.id} className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-ink truncate">{doc.title}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-semibold text-ink truncate">{doc.title}</p>
+                    {doc.kind === 'proof' ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-brand-green-soft text-brand-green-deep">Proof</span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-cream text-brand-green-ink border border-line">Info</span>
+                    )}
+                  </div>
                   <p className="text-xs text-ink-soft mt-0.5">
                     {doc.uploadedAt && `Added ${formatDate(doc.uploadedAt)}`}
                     {doc.sizeBytes ? ` · ${formatBytes(doc.sizeBytes)}` : ''}

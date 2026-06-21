@@ -6,10 +6,13 @@
 
 import { getDashboardKey } from './dashboardApi';
 
+export type DocKind = 'proof' | 'info';
+
 export interface HostDocument {
   id: string;
   title: string;
   filename: string;
+  kind: DocKind;
   webViewLink: string;
   downloadLink: string;
   sizeBytes: number;
@@ -62,6 +65,7 @@ const CHUNK_BYTES = 3 * 1024 * 1024;
 export async function uploadDocument(
   file: File,
   title: string,
+  kind: DocKind,
   onProgress?: (fraction: number) => void,
 ): Promise<void> {
   const { uploadUrl } = await call<{ uploadUrl: string }>('create-upload-session', {
@@ -69,6 +73,7 @@ export async function uploadDocument(
     filename: file.name,
     title: title.trim() || file.name,
     size: file.size,
+    kind,
   });
 
   const total = file.size;

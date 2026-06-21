@@ -1,18 +1,21 @@
 import type { Context } from '@netlify/functions';
 import { google } from 'googleapis';
 import { timingSafeEqual } from 'node:crypto';
-import { Readable } from 'stream';
 
 // Shared host-resource documents (info pack, guidelines, maps…).
 //
 // Coordinators upload PDFs from the password-gated dashboard; every host can
 // then download them from the public Host documents page. Files live in a
-// dedicated "Host Documents" Drive folder and are made public-readable, so the
-// listing itself needs no Drive lookups beyond the folder contents.
+// dedicated "Host Documents" Drive folder and are made public-readable.
 //
-//   action: 'list'    — public, returns the documents in the folder
-//   action: 'upload'  — password-gated, adds a PDF
-//   action: 'delete'  — password-gated, removes a PDF by id
+// To keep large files off Netlify (whose request body tops out near 6 MB), the
+// browser uploads straight to Drive via a resumable session this function
+// hands out. Flow:
+//
+//   action: 'list'                  — public, returns the documents
+//   action: 'create-upload-session' — gated, returns a Drive upload URL
+//   action: 'finalize'             — gated, makes the uploaded file public
+//   action: 'delete'               — gated, removes a PDF by id
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -20,10 +23,8 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-// Netlify's synchronous function payload tops out around 6 MB, and base64
-// inflates the body by ~33%, so keep the raw file comfortably under that.
-const MAX_BYTES = 4 * 1024 * 1024;
 const DOCS_SUBFOLDER = 'Host Documents';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -45,16 +46,30 @@ function passwordOk(provided: unknown): boolean {
   }
 }
 
+function getCredentials() {
+  return JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '{}');
+}
+
 function getDriveClient() {
-  const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '{}');
-  const auth = new google.auth.GoogleAuth({
-    credentials,
-    scopes: ['https://www.googleapis.com/auth/drive'],
-  });
+  const auth = new google.auth.GoogleAuth({ credentials: getCredentials(), scopes: [DRIVE_SCOPE] });
   return google.drive({ version: 'v3', auth });
 }
 
 type Drive = ReturnType<typeof getDriveClient>;
+
+async function getAccessToken(): Promise<string> {
+  const auth = new google.auth.GoogleAuth({ credentials: getCredentials(), scopes: [DRIVE_SCOPE] });
+  const client = await auth.getClient();
+  const res = await client.getAccessToken();
+  const token = typeof res === 'string' ? res : res?.token;
+  if (!token) throw new Error('Could not obtain access token');
+  return token;
+}
+
+function pdfName(filename: string): string {
+  const clean = filename.replace(/[/\\?%*:|"<>]/g, '-').trim() || 'document.pdf';
+  return clean.toLowerCase().endsWith('.pdf') ? clean : `${clean}.pdf`;
+}
 
 async function getOrCreateSubfolder(drive: Drive, parentFolderId: string, folderName: string): Promise<string> {
   const safeName = folderName.replace(/[/\\?%*:|"<>]/g, '-').trim();
@@ -106,9 +121,9 @@ export default async (request: Request, _context: Context) => {
   let body: {
     action?: string;
     password?: string;
-    fileData?: string;
     filename?: string;
     title?: string;
+    size?: number;
     id?: string;
   };
   try {
@@ -118,7 +133,7 @@ export default async (request: Request, _context: Context) => {
   }
 
   const action = body.action ?? 'list';
-  const mutating = action === 'upload' || action === 'delete';
+  const mutating = action === 'create-upload-session' || action === 'finalize' || action === 'delete';
   if (mutating && !passwordOk(body.password)) return json({ error: 'Unauthorised' }, 401);
 
   try {
@@ -146,70 +161,74 @@ export default async (request: Request, _context: Context) => {
       return json({ documents });
     }
 
-    if (action === 'upload') {
-      const { fileData, filename, title } = body;
-      if (!fileData || !filename) return json({ error: 'Missing required fields: fileData, filename' }, 400);
+    // Start a resumable upload session and hand the URL to the browser, which
+    // PUTs the file bytes straight to Drive — bypassing Netlify's size limit.
+    if (action === 'create-upload-session') {
+      const { filename, title, size } = body;
+      if (!filename) return json({ error: 'Missing filename' }, 400);
 
-      const base64Data = fileData.includes(',') ? fileData.split(',')[1] : fileData;
-      const buffer = Buffer.from(base64Data, 'base64');
-      if (buffer.byteLength === 0) return json({ error: 'Empty file' }, 400);
-      if (buffer.byteLength > MAX_BYTES) return json({ error: 'File too large — maximum 4 MB per document' }, 413);
+      const safeName = pdfName(filename);
+      const metadata = {
+        name: safeName,
+        description: (title || safeName).trim(),
+        parents: [folderId],
+        mimeType: 'application/pdf',
+      };
 
-      // Keep a stable .pdf name on disk; the human-friendly title rides in the
-      // file description so it can contain spaces/punctuation.
-      const cleanName = filename.replace(/[/\\?%*:|"<>]/g, '-').trim() || 'document.pdf';
-      const safeName = cleanName.toLowerCase().endsWith('.pdf') ? cleanName : `${cleanName}.pdf`;
-
-      const uploadStream = new Readable();
-      uploadStream.push(buffer);
-      uploadStream.push(null);
-
-      const file = await drive.files.create({
-        requestBody: {
-          name: safeName,
-          description: (title || safeName).trim(),
-          parents: [folderId],
+      const accessToken = await getAccessToken();
+      const initRes = await fetch(
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true&fields=id',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json; charset=UTF-8',
+            'X-Upload-Content-Type': 'application/pdf',
+            ...(size ? { 'X-Upload-Content-Length': String(size) } : {}),
+          },
+          body: JSON.stringify(metadata),
         },
-        media: { mimeType: 'application/pdf', body: uploadStream },
-        fields: 'id,name,description,webViewLink,size,createdTime',
-        supportsAllDrives: true,
-      });
+      );
 
-      const fileId = file.data.id!;
+      if (!initRes.ok) {
+        const details = await initRes.text().catch(() => '');
+        console.error('resumable init failed:', initRes.status, details);
+        return json({ error: 'Could not start the upload', details }, 502);
+      }
+      const uploadUrl = initRes.headers.get('location');
+      if (!uploadUrl) return json({ error: 'Drive did not return an upload URL' }, 502);
+
+      return json({ uploadUrl, filename: safeName });
+    }
+
+    // After the browser finishes the PUT, make the file world-readable so hosts
+    // can download it, and confirm it really landed in our folder.
+    if (action === 'finalize') {
+      if (!body.id) return json({ error: 'Missing id' }, 400);
+      const meta = await drive.files
+        .get({ fileId: body.id, fields: 'id,parents', supportsAllDrives: true })
+        .catch(() => null);
+      if (!meta?.data.parents?.includes(folderId)) return json({ error: 'Document not found' }, 404);
       try {
         await drive.permissions.create({
-          fileId,
+          fileId: body.id,
           requestBody: { type: 'anyone', role: 'reader' },
           supportsAllDrives: true,
         });
       } catch (permErr) {
         console.warn('Could not set public permissions:', permErr instanceof Error ? permErr.message : permErr);
       }
-
-      const doc: DocItem = {
-        id: fileId,
-        title: file.data.description || file.data.name || 'Untitled document',
-        filename: file.data.name || safeName,
-        webViewLink: file.data.webViewLink || `https://drive.google.com/file/d/${fileId}/view`,
-        downloadLink: `https://drive.google.com/uc?export=download&id=${fileId}`,
-        sizeBytes: file.data.size ? Number(file.data.size) : buffer.byteLength,
-        uploadedAt: file.data.createdTime || new Date().toISOString(),
-      };
-      return json({ success: true, document: doc });
+      return json({ success: true });
     }
 
     if (action === 'delete') {
       if (!body.id) return json({ error: 'Missing id' }, 400);
       // Verify the file really sits in our folder before deleting, so a stray id
       // can't be used to remove arbitrary Drive files.
-      const meta = await drive.files.get({
-        fileId: body.id,
-        fields: 'id,parents',
-        supportsAllDrives: true,
-      }).catch(() => null);
-      if (!meta?.data.parents?.includes(folderId)) {
-        return json({ error: 'Document not found' }, 404);
-      }
+      const meta = await drive.files
+        .get({ fileId: body.id, fields: 'id,parents', supportsAllDrives: true })
+        .catch(() => null);
+      if (!meta?.data.parents?.includes(folderId)) return json({ error: 'Document not found' }, 404);
       await drive.files.delete({ fileId: body.id, supportsAllDrives: true });
       return json({ success: true });
     }

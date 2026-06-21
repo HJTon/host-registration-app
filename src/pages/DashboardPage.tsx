@@ -214,7 +214,9 @@ function HSTab() {
 }
 
 // ── Documents module: upload shared host resources (PDFs) ──────────────────────
-const MAX_DOC_BYTES = 4 * 1024 * 1024;
+// Files go browser → Drive directly, so there's no Netlify size limit; cap is a
+// sanity guard against accidental huge uploads.
+const MAX_DOC_BYTES = 100 * 1024 * 1024;
 
 function DocumentsTab() {
   const [docs, setDocs] = useState<HostDocument[]>([]);
@@ -224,6 +226,7 @@ function DocumentsTab() {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -246,7 +249,7 @@ function DocumentsTab() {
       return;
     }
     if (f && f.size > MAX_DOC_BYTES) {
-      setUploadError('That file is larger than 4 MB. Please compress or split it first.');
+      setUploadError('That file is larger than 100 MB. Please check it’s the right file.');
       setFile(null);
       return;
     }
@@ -258,9 +261,10 @@ function DocumentsTab() {
     e.preventDefault();
     if (!file) return;
     setUploading(true);
+    setProgress(0);
     setUploadError(null);
     try {
-      await uploadDocument(file, title.trim() || file.name);
+      await uploadDocument(file, title.trim() || file.name, f => setProgress(f));
       setFile(null);
       setTitle('');
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -269,6 +273,7 @@ function DocumentsTab() {
       setUploadError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setUploading(false);
+      setProgress(0);
     }
   };
 
@@ -293,7 +298,8 @@ function DocumentsTab() {
         <Divider label="Add a document" className="mb-4" />
         <p className="text-[13px] text-ink-soft mb-4">
           Upload a PDF (info pack, guidelines, map, etc.). It appears straight away for every host on the
-          <span className="font-semibold"> Host documents</span> page. Maximum 4 MB per file.
+          <span className="font-semibold"> Host documents</span> page. Large files are fine — they upload
+          directly to Drive.
         </p>
         <form onSubmit={handleUpload} className="flex flex-col gap-3">
           <Field label="Title" htmlFor="doc-title" hint="Shown to hosts as the document name.">
@@ -314,8 +320,19 @@ function DocumentsTab() {
               className="block w-full text-[13px] text-ink-soft file:mr-3 file:rounded-full file:border-0 file:bg-brand-green file:px-4 file:py-2 file:text-white file:font-semibold file:cursor-pointer hover:file:brightness-95"
             />
           </Field>
-          {file && (
+          {file && !uploading && (
             <p className="meta">Selected: {file.name} · {formatBytes(file.size)}</p>
+          )}
+          {uploading && (
+            <div className="flex flex-col gap-1">
+              <div className="h-1.5 w-full rounded-full bg-line overflow-hidden">
+                <div
+                  className="h-full bg-brand-green transition-[width] duration-150"
+                  style={{ width: `${Math.round(progress * 100)}%` }}
+                />
+              </div>
+              <p className="meta">{Math.round(progress * 100)}% uploaded</p>
+            </div>
           )}
           <Btn type="submit" variant="primary" disabled={!file || uploading}>
             {uploading ? 'Uploading…' : 'Upload document'}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BrandHeader, Card, Divider, Btn } from '../components/ui';
 import { listDocuments, type HostDocument } from '../utils/documentsApi';
+import ProofChangeModal from '../components/ProofChangeModal';
 
 interface Deadline {
   date: string;
@@ -37,6 +38,7 @@ export default function DocumentsPage() {
   const [docs, setDocs] = useState<HostDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  const [suggestFor, setSuggestFor] = useState<HostDocument | null>(null);
 
   useEffect(() => {
     listDocuments()
@@ -67,25 +69,36 @@ export default function DocumentsPage() {
             {docs.map(doc => (
               <div
                 key={doc.id}
-                className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-[12px] border border-line bg-paper px-3.5 py-3"
+                className="rounded-[12px] border border-line bg-paper px-3.5 py-3"
               >
-                <div className="flex-1 min-w-0 flex items-start gap-2.5">
-                  <span className="shrink-0 text-brand-green-deep" aria-hidden="true">📄</span>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-ink">{doc.title}</p>
-                    <p className="text-xs text-ink-soft mt-0.5">
-                      PDF{doc.sizeBytes ? ` · ${formatBytes(doc.sizeBytes)}` : ''}
-                      {doc.uploadedAt ? ` · added ${formatDate(doc.uploadedAt)}` : ''}
-                    </p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1 min-w-0 flex items-start gap-2.5">
+                    <span className="shrink-0 text-brand-green-deep" aria-hidden="true">📄</span>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-ink">{doc.title}</p>
+                      <p className="text-xs text-ink-soft mt-0.5">
+                        PDF{doc.sizeBytes ? ` · ${formatBytes(doc.sizeBytes)}` : ''}
+                        {doc.uploadedAt ? ` · added ${formatDate(doc.uploadedAt)}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="shrink-0 flex items-center gap-2">
+                    <a href={doc.webViewLink} target="_blank" rel="noopener noreferrer">
+                      <Btn size="sm" variant="ghost">View</Btn>
+                    </a>
+                    <a href={doc.downloadLink} target="_blank" rel="noopener noreferrer">
+                      <Btn size="sm" variant="primary">Download</Btn>
+                    </a>
                   </div>
                 </div>
-                <div className="shrink-0 flex items-center gap-2">
-                  <a href={doc.webViewLink} target="_blank" rel="noopener noreferrer">
-                    <Btn size="sm" variant="ghost">View</Btn>
-                  </a>
-                  <a href={doc.downloadLink} target="_blank" rel="noopener noreferrer">
-                    <Btn size="sm" variant="primary">Download</Btn>
-                  </a>
+                <div className="mt-2 pt-2 border-t border-line/70">
+                  <button
+                    type="button"
+                    onClick={() => setSuggestFor(doc)}
+                    className="text-[13px] font-semibold text-brand-green-deep hover:underline"
+                  >
+                    ✎ Suggest a change to this proof
+                  </button>
                 </div>
               </div>
             ))}
@@ -112,6 +125,10 @@ export default function DocumentsPage() {
           ))}
         </div>
       </Card>
+
+      {suggestFor && (
+        <ProofChangeModal documentTitle={suggestFor.title} onClose={() => setSuggestFor(null)} />
+      )}
     </div>
   );
 }

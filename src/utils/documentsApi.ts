@@ -37,38 +37,27 @@ export async function listDocuments(): Promise<HostDocument[]> {
   return documents;
 }
 
-// PUT the file straight to the Drive resumable session URL. Using XHR (rather
-// than fetch) so we can report upload progress for large files. The session URL
-// is pre-authorised, so no auth header is needed here.
-function putToDrive(url: string, file: File, onProgress?: (fraction: number) => void): Promise<string> {
+// Read a Blob (a file slice) into bare base64 (no data: prefix).
+function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('PUT', url);
-    xhr.setRequestHeader('Content-Type', 'application/pdf');
-    xhr.upload.onprogress = e => {
-      if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.includes(',') ? result.split(',')[1] : result);
     };
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const data = JSON.parse(xhr.responseText) as { id?: string };
-          if (data.id) resolve(data.id);
-          else reject(new Error('Upload finished but Drive returned no file id'));
-        } catch {
-          reject(new Error('Upload finished but the response was unreadable'));
-        }
-      } else {
-        reject(new Error(`Upload failed (${xhr.status})`));
-      }
-    };
-    xhr.onerror = () => reject(new Error('Upload failed — check your connection and try again'));
-    xhr.send(file);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
   });
 }
 
-// Direct browser → Drive upload, so there's no Netlify request-size limit.
-// 1) ask the function for a resumable upload URL, 2) PUT the bytes to Drive,
-// 3) ask the function to make the new file public.
+// Drive resumable chunks must be a multiple of 256 KB (except the last). 3 MB
+// keeps each relayed request well under Netlify's ~6 MB body limit once base64
+// inflates it.
+const CHUNK_BYTES = 3 * 1024 * 1024;
+
+// Upload by relaying chunks through our function (browser → Drive directly is
+// blocked by CORS). 1) get a resumable session, 2) relay each chunk, 3) make
+// the finished file public.
 export async function uploadDocument(
   file: File,
   title: string,
@@ -80,7 +69,30 @@ export async function uploadDocument(
     title: title.trim() || file.name,
     size: file.size,
   });
-  const id = await putToDrive(uploadUrl, file, onProgress);
+
+  const total = file.size;
+  let start = 0;
+  let id: string | undefined;
+
+  while (start < total) {
+    const end = Math.min(start + CHUNK_BYTES, total);
+    const chunk = await blobToBase64(file.slice(start, end));
+    const res = await call<{ done: boolean; id?: string }>('upload-chunk', {
+      password: getDashboardKey(),
+      uploadUrl,
+      chunk,
+      start,
+      total,
+    });
+    onProgress?.(end / total);
+    if (res.done) {
+      id = res.id;
+      break;
+    }
+    start = end;
+  }
+
+  if (!id) throw new Error('Upload did not complete — please try again');
   await call('finalize', { password: getDashboardKey(), id });
 }
 

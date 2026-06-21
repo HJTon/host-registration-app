@@ -12,10 +12,17 @@ import { timingSafeEqual } from 'node:crypto';
 // browser uploads straight to Drive via a resumable session this function
 // hands out. Flow:
 //
+// Browser → Drive directly is blocked by CORS, so the bytes are relayed through
+// this function in chunks: each chunk stays under Netlify's request limit, and
+// the function → Drive hop is server-side (no CORS).
+//
 //   action: 'list'                  — public, returns the documents
 //   action: 'create-upload-session' — gated, returns a Drive upload URL
+//   action: 'upload-chunk'         — gated, relays one chunk to Drive
 //   action: 'finalize'             — gated, makes the uploaded file public
 //   action: 'delete'               — gated, removes a PDF by id
+
+const UPLOAD_URL_PREFIX = 'https://www.googleapis.com/upload/drive/v3/files';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -125,6 +132,10 @@ export default async (request: Request, _context: Context) => {
     title?: string;
     size?: number;
     id?: string;
+    uploadUrl?: string;
+    chunk?: string;
+    start?: number;
+    total?: number;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -133,8 +144,49 @@ export default async (request: Request, _context: Context) => {
   }
 
   const action = body.action ?? 'list';
-  const mutating = action === 'create-upload-session' || action === 'finalize' || action === 'delete';
+  const mutating =
+    action === 'create-upload-session' ||
+    action === 'upload-chunk' ||
+    action === 'finalize' ||
+    action === 'delete';
   if (mutating && !passwordOk(body.password)) return json({ error: 'Unauthorised' }, 401);
+
+  // Relaying a chunk needs no Drive folder lookup — handle it before that.
+  if (action === 'upload-chunk') {
+    const { uploadUrl, chunk, start, total } = body;
+    if (!uploadUrl || !chunk || typeof start !== 'number' || typeof total !== 'number') {
+      return json({ error: 'Missing chunk fields' }, 400);
+    }
+    if (!uploadUrl.startsWith(UPLOAD_URL_PREFIX)) {
+      return json({ error: 'Invalid upload URL' }, 400);
+    }
+    const base64 = chunk.includes(',') ? chunk.split(',')[1] : chunk;
+    const buffer = Buffer.from(base64, 'base64');
+    const end = start + buffer.byteLength - 1;
+    try {
+      const accessToken = await getAccessToken();
+      const res = await fetch(uploadUrl, {
+        method: 'PUT',
+        redirect: 'manual', // Drive signals "more chunks" with 308 — don't follow it
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Range': `bytes ${start}-${end}/${total}`,
+        },
+        body: buffer,
+      });
+      if (res.status === 308) return json({ done: false });
+      if (res.status === 200 || res.status === 201) {
+        const data = (await res.json().catch(() => ({}))) as { id?: string };
+        return json({ done: true, id: data.id });
+      }
+      const details = await res.text().catch(() => '');
+      console.error('chunk relay failed:', res.status, details);
+      return json({ error: 'Chunk upload failed', details }, 502);
+    } catch (err) {
+      console.error('chunk relay error:', err);
+      return json({ error: 'Chunk upload failed', details: err instanceof Error ? err.message : 'Unknown' }, 502);
+    }
+  }
 
   try {
     const drive = getDriveClient();

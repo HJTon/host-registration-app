@@ -79,9 +79,14 @@ export default function DocumentsPage() {
                     </p>
                   </div>
                 </div>
-                <a href={doc.downloadLink} target="_blank" rel="noopener noreferrer" className="shrink-0">
-                  <Btn size="sm" variant="primary">Download</Btn>
-                </a>
+                <div className="shrink-0 flex items-center gap-2">
+                  <a href={doc.webViewLink} target="_blank" rel="noopener noreferrer">
+                    <Btn size="sm" variant="ghost">View</Btn>
+                  </a>
+                  <a href={doc.downloadLink} target="_blank" rel="noopener noreferrer">
+                    <Btn size="sm" variant="primary">Download</Btn>
+                  </a>
+                </div>
               </div>
             ))}
           </div>

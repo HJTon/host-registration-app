@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { HSType } from '../types/healthSafety';
@@ -8,6 +8,9 @@ import {
   withdrawHost, restoreHost,
   DashboardAuthError, type DashboardHost, type HSCounts,
 } from '../utils/dashboardApi';
+import {
+  listDocuments, uploadDocument, deleteDocument, type HostDocument,
+} from '../utils/documentsApi';
 import { BrandHeader, Card, Btn, Divider, Field, Input, CategoryChip } from '../components/ui';
 
 function formatDate(iso: string): string {
@@ -19,9 +22,16 @@ function formatDate(iso: string): string {
   }
 }
 
-// ── Module tabs (H&S active; the rest are placeholders for future modules) ─────
+function formatBytes(bytes: number): string {
+  if (!bytes) return '';
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// ── Module tabs (H&S + Documents active; the rest are placeholders) ────────────
 const TABS: { id: string; label: string; enabled: boolean }[] = [
   { id: 'hs', label: 'Health & Safety', enabled: true },
+  { id: 'documents', label: 'Documents', enabled: true },
   { id: 'visitors', label: 'Visitor tally', enabled: false },
   { id: 'talks', label: 'Talks & workshops', enabled: false },
 ];
@@ -203,6 +213,161 @@ function HSTab() {
   );
 }
 
+// ── Documents module: upload shared host resources (PDFs) ──────────────────────
+const MAX_DOC_BYTES = 4 * 1024 * 1024;
+
+function DocumentsTab() {
+  const [docs, setDocs] = useState<HostDocument[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [file, setFile] = useState<File | null>(null);
+  const [title, setTitle] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const load = () => {
+    setLoading(true);
+    setError(null);
+    listDocuments()
+      .then(setDocs)
+      .catch(err => setError(err instanceof Error ? err.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const onPickFile = (f: File | null) => {
+    setUploadError(null);
+    if (f && f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf')) {
+      setUploadError('Please choose a PDF file.');
+      setFile(null);
+      return;
+    }
+    if (f && f.size > MAX_DOC_BYTES) {
+      setUploadError('That file is larger than 4 MB. Please compress or split it first.');
+      setFile(null);
+      return;
+    }
+    setFile(f);
+    if (f && !title.trim()) setTitle(f.name.replace(/\.pdf$/i, ''));
+  };
+
+  const handleUpload = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      await uploadDocument(file, title.trim() || file.name);
+      setFile(null);
+      setTitle('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      load();
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (doc: HostDocument) => {
+    if (!window.confirm(`Remove “${doc.title}”? Hosts will no longer see this document.`)) return;
+    setBusyId(doc.id);
+    setError(null);
+    try {
+      await deleteDocument(doc.id);
+      setDocs(ds => ds.filter(d => d.id !== doc.id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not remove document');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div className="mt-4 flex flex-col gap-4">
+      {/* Upload form */}
+      <Card>
+        <Divider label="Add a document" className="mb-4" />
+        <p className="text-[13px] text-ink-soft mb-4">
+          Upload a PDF (info pack, guidelines, map, etc.). It appears straight away for every host on the
+          <span className="font-semibold"> Host documents</span> page. Maximum 4 MB per file.
+        </p>
+        <form onSubmit={handleUpload} className="flex flex-col gap-3">
+          <Field label="Title" htmlFor="doc-title" hint="Shown to hosts as the document name.">
+            <Input
+              id="doc-title"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="e.g. Host information pack 2026"
+            />
+          </Field>
+          <Field label="PDF file" htmlFor="doc-file" error={uploadError ?? undefined}>
+            <input
+              ref={fileInputRef}
+              id="doc-file"
+              type="file"
+              accept="application/pdf,.pdf"
+              onChange={e => onPickFile(e.target.files?.[0] ?? null)}
+              className="block w-full text-[13px] text-ink-soft file:mr-3 file:rounded-full file:border-0 file:bg-brand-green file:px-4 file:py-2 file:text-white file:font-semibold file:cursor-pointer hover:file:brightness-95"
+            />
+          </Field>
+          {file && (
+            <p className="meta">Selected: {file.name} · {formatBytes(file.size)}</p>
+          )}
+          <Btn type="submit" variant="primary" disabled={!file || uploading}>
+            {uploading ? 'Uploading…' : 'Upload document'}
+          </Btn>
+        </form>
+      </Card>
+
+      {/* Existing documents */}
+      <div>
+        <Divider label="Published documents" className="mb-3" />
+        {loading ? (
+          <p className="meta">Loading documents…</p>
+        ) : error ? (
+          <Card>
+            <p className="text-danger text-sm mb-3">{error}</p>
+            <Btn size="sm" variant="ghost" onClick={load}>Try again</Btn>
+          </Card>
+        ) : docs.length === 0 ? (
+          <p className="meta">No documents yet. Upload one above to share it with hosts.</p>
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            {docs.map(doc => (
+              <Card key={doc.id} className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-ink truncate">{doc.title}</p>
+                  <p className="text-xs text-ink-soft mt-0.5">
+                    {doc.uploadedAt && `Added ${formatDate(doc.uploadedAt)}`}
+                    {doc.sizeBytes ? ` · ${formatBytes(doc.sizeBytes)}` : ''}
+                  </p>
+                </div>
+                <div className="shrink-0 flex items-center gap-2">
+                  <a href={doc.webViewLink} target="_blank" rel="noopener noreferrer">
+                    <Btn size="sm" variant="ghost">View</Btn>
+                  </a>
+                  <Btn
+                    size="sm"
+                    variant="danger"
+                    disabled={busyId === doc.id}
+                    onClick={() => handleDelete(doc)}
+                  >
+                    {busyId === doc.id ? '…' : 'Remove'}
+                  </Btn>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [authed, setAuthed] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -310,6 +475,8 @@ export default function DashboardPage() {
 
       {activeTab === 'hs' ? (
         <HSTab />
+      ) : activeTab === 'documents' ? (
+        <DocumentsTab />
       ) : (
         <Card className="mt-4 text-center">
           <p className="text-3xl mb-2">🚧</p>

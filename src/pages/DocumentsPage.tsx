@@ -1,4 +1,6 @@
-import { BrandHeader, Card, Divider } from '../components/ui';
+import { useEffect, useState } from 'react';
+import { BrandHeader, Card, Divider, Btn } from '../components/ui';
+import { listDocuments, type HostDocument } from '../utils/documentsApi';
 
 interface Deadline {
   date: string;
@@ -16,7 +18,33 @@ const KEY_DEADLINES: Deadline[] = [
   { date: '15 November 2026', description: 'Builds, Lifestyle & Farms Trail closes' },
 ];
 
+function formatDate(iso: string): string {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' });
+  } catch {
+    return iso;
+  }
+}
+
+function formatBytes(bytes: number): string {
+  if (!bytes) return '';
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export default function DocumentsPage() {
+  const [docs, setDocs] = useState<HostDocument[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    listDocuments()
+      .then(setDocs)
+      .catch(() => setFailed(true))
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <div className="max-w-2xl mx-auto px-4 pb-12">
       <BrandHeader backTo="/" />
@@ -28,6 +56,43 @@ export default function DocumentsPage() {
           Host documents
         </h1>
       </div>
+
+      {/* Downloadable documents */}
+      <Card className="mb-4">
+        <Divider label="Documents & resources" className="mb-4" />
+        {loading ? (
+          <p className="meta">Loading documents…</p>
+        ) : docs.length > 0 ? (
+          <div className="flex flex-col gap-2.5">
+            {docs.map(doc => (
+              <div
+                key={doc.id}
+                className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-[12px] border border-line bg-paper px-3.5 py-3"
+              >
+                <div className="flex-1 min-w-0 flex items-start gap-2.5">
+                  <span className="shrink-0 text-brand-green-deep" aria-hidden="true">📄</span>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-ink">{doc.title}</p>
+                    <p className="text-xs text-ink-soft mt-0.5">
+                      PDF{doc.sizeBytes ? ` · ${formatBytes(doc.sizeBytes)}` : ''}
+                      {doc.uploadedAt ? ` · added ${formatDate(doc.uploadedAt)}` : ''}
+                    </p>
+                  </div>
+                </div>
+                <a href={doc.downloadLink} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                  <Btn size="sm" variant="primary">Download</Btn>
+                </a>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[13px] text-ink-soft">
+            {failed
+              ? 'Documents are unavailable right now — please try again shortly.'
+              : 'More documents (information pack, guidelines, resources) will be added here closer to the event.'}
+          </p>
+        )}
+      </Card>
 
       <Card className="mb-4">
         <Divider label="Key deadlines" className="mb-4" />
@@ -41,12 +106,6 @@ export default function DocumentsPage() {
             </div>
           ))}
         </div>
-      </Card>
-
-      <Card className="bg-cream border-cream">
-        <p className="text-[13px] text-ink-soft text-center">
-          More documents (information pack, guidelines, resources) will be added here closer to the event.
-        </p>
       </Card>
     </div>
   );

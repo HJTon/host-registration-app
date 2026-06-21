@@ -275,13 +275,20 @@ export default async (request: Request, _context: Context) => {
 
     if (action === 'delete') {
       if (!body.id) return json({ error: 'Missing id' }, 400);
-      // Verify the file really sits in our folder before deleting, so a stray id
-      // can't be used to remove arbitrary Drive files.
+      // Verify the file really sits in our folder before removing it, so a stray
+      // id can't be used to touch arbitrary Drive files.
       const meta = await drive.files
         .get({ fileId: body.id, fields: 'id,parents', supportsAllDrives: true })
         .catch(() => null);
       if (!meta?.data.parents?.includes(folderId)) return json({ error: 'Document not found' }, 404);
-      await drive.files.delete({ fileId: body.id, supportsAllDrives: true });
+      // Trash rather than permanently delete: a service account with only
+      // content-manager rights on a Shared Drive can trash but not hard-delete,
+      // and trashing is reversible. Trashed files drop out of the list query.
+      await drive.files.update({
+        fileId: body.id,
+        requestBody: { trashed: true },
+        supportsAllDrives: true,
+      });
       return json({ success: true });
     }
 

@@ -25,8 +25,9 @@ async function call<T>(action: string, extra: Record<string, unknown> = {}): Pro
     body: JSON.stringify({ action, ...extra }),
   });
   if (!res.ok) {
-    const err = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(err.error ?? 'Request failed');
+    const err = (await res.json().catch(() => ({}))) as { error?: string; details?: string };
+    const msg = err.error ?? 'Request failed';
+    throw new Error(err.details ? `${msg}: ${err.details}` : msg);
   }
   return (await res.json()) as T;
 }

@@ -19,6 +19,18 @@ function getSheets() {
   return google.sheets({ version: 'v4', auth });
 }
 
+// Netlify functions have a hard ~10s limit. A Google API call that hangs would
+// otherwise burn the whole budget and fail with an opaque timeout — losing the
+// host's feedback with no clear error. Fail each call fast and loudly instead.
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms),
+    ),
+  ]);
+}
+
 const SHEET_HEADERS = [
   'Submitted At',
   'Name',
@@ -31,25 +43,37 @@ async function ensureTab(
   sheets: ReturnType<typeof getSheets>,
   spreadsheetId: string,
 ): Promise<void> {
-  const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+  const spreadsheet = await withTimeout(
+    sheets.spreadsheets.get({ spreadsheetId }),
+    7000,
+    'spreadsheets.get',
+  );
   const exists = spreadsheet.data.sheets?.some(
     (s) => s.properties?.title === TAB_NAME,
   );
   if (exists) return;
 
-  await sheets.spreadsheets.batchUpdate({
-    spreadsheetId,
-    requestBody: {
-      requests: [{ addSheet: { properties: { title: TAB_NAME } } }],
-    },
-  });
+  await withTimeout(
+    sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [{ addSheet: { properties: { title: TAB_NAME } } }],
+      },
+    }),
+    7000,
+    'addSheet',
+  );
 
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: `'${TAB_NAME}'!A1`,
-    valueInputOption: 'USER_ENTERED',
-    requestBody: { values: [SHEET_HEADERS] },
-  });
+  await withTimeout(
+    sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `'${TAB_NAME}'!A1`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [SHEET_HEADERS] },
+    }),
+    7000,
+    'header update',
+  );
 }
 
 interface SubmitBody {
@@ -100,13 +124,17 @@ export default async (request: Request, _context: Context) => {
       body.message,
     ];
 
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: `'${TAB_NAME}'!A:A`,
-      valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS',
-      requestBody: { values: [row] },
-    });
+    await withTimeout(
+      sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: `'${TAB_NAME}'!A:A`,
+        valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: { values: [row] },
+      }),
+      7000,
+      'values.append',
+    );
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

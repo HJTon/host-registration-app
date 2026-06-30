@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import VoiceInput from '../components/VoiceInput';
 import { BrandHeader, Card, Btn, Field, Input } from '../components/ui';
 
 const FEEDBACK_TYPES = ['Idea', 'Complaint', 'Compliment', 'Question'] as const;
 type FeedbackType = typeof FEEDBACK_TYPES[number];
+
+const DRAFT_KEY = 'trails-feedback-draft';
+const COORDINATOR_EMAIL = 'suzy.randall@sustainabletaranaki.org.nz';
 
 interface FeedbackForm {
   name: string;
@@ -13,17 +16,47 @@ interface FeedbackForm {
   message: string;
 }
 
+const EMPTY_FORM: FeedbackForm = { name: '', propertyName: '', feedbackType: '', message: '' };
+
+// Pre-fills the host's email client with everything they wrote, so a failed
+// submission never costs them their words — they can send it straight to the
+// coordinator instead.
+function buildMailto(form: FeedbackForm): string {
+  const subject = `Sustainable Trails feedback${form.propertyName ? ` — ${form.propertyName}` : ''}`;
+  const lines = [
+    form.name ? `Name: ${form.name}` : '',
+    form.propertyName ? `Property: ${form.propertyName}` : '',
+    form.feedbackType ? `Type: ${form.feedbackType}` : '',
+    '',
+    form.message,
+  ].filter(Boolean);
+  return `mailto:${COORDINATOR_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
+}
+
 export default function FeedbackPage() {
   const navigate = useNavigate();
-  const [form, setForm] = useState<FeedbackForm>({
-    name: '',
-    propertyName: '',
-    feedbackType: '',
-    message: '',
+  const [form, setForm] = useState<FeedbackForm>(() => {
+    // Restore any draft that survived a failed submit or an interrupted session.
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) return { ...EMPTY_FORM, ...JSON.parse(saved) };
+    } catch { /* ignore corrupt draft */ }
+    return EMPTY_FORM;
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+
+  // Persist a draft as they type so their words are never lost if the submit
+  // fails, the connection drops, or they close the tab mid-feedback.
+  useEffect(() => {
+    if (submitted) return;
+    try {
+      if (form.message.trim() || form.name.trim() || form.propertyName.trim()) {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(form));
+      }
+    } catch { /* storage full / unavailable — non-fatal */ }
+  }, [form, submitted]);
 
   const set = (field: keyof FeedbackForm, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -47,6 +80,8 @@ export default function FeedbackPage() {
         const err = await response.json().catch(() => ({})) as { error?: string };
         throw new Error(err.error ?? 'Submission failed. Please try again.');
       }
+      // Saved successfully — drop the draft so it doesn't resurface later.
+      try { localStorage.removeItem(DRAFT_KEY); } catch { /* non-fatal */ }
       setSubmitted(true);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
@@ -146,6 +181,16 @@ export default function FeedbackPage() {
             {submitError && (
               <div className="bg-danger/10 border border-danger rounded-[10px] p-3">
                 <p className="text-danger text-sm font-medium">{submitError}</p>
+                <p className="text-ink-soft text-[13px] mt-1.5">
+                  Your message is saved on this device, so you won't lose it. You can try again, or
+                  send it straight to the team instead:
+                </p>
+                <a
+                  href={buildMailto(form)}
+                  className="inline-flex items-center gap-1.5 mt-2 text-sm font-semibold text-brand-green-deep underline"
+                >
+                  Email it to the team
+                </a>
               </div>
             )}
           </Card>

@@ -5,8 +5,8 @@ import type { HSType } from '../types/healthSafety';
 import { HS_TYPE_LABELS } from '../types/healthSafety';
 import {
   fetchHSList, dashboardLogin, getDashboardKey, clearDashboardKey,
-  withdrawHost, restoreHost,
-  DashboardAuthError, type DashboardHost, type HSCounts,
+  withdrawHost, restoreHost, fetchBankAccounts,
+  DashboardAuthError, type DashboardHost, type HSCounts, type BankAccount,
 } from '../utils/dashboardApi';
 import {
   listDocuments, uploadDocument, deleteDocument, type HostDocument, type DocKind,
@@ -32,6 +32,7 @@ function formatBytes(bytes: number): string {
 const TABS: { id: string; label: string; enabled: boolean }[] = [
   { id: 'hs', label: 'Health & Safety', enabled: true },
   { id: 'documents', label: 'Documents', enabled: true },
+  { id: 'bank', label: 'Bank details', enabled: true },
   { id: 'visitors', label: 'Visitor tally', enabled: false },
   { id: 'talks', label: 'Talks & workshops', enabled: false },
 ];
@@ -420,6 +421,77 @@ function DocumentsTab() {
   );
 }
 
+// ── Bank details module: accounts hosts submitted for reimbursement ───────────
+// Numbers stay masked until a coordinator asks to see one, so the list can be
+// browsed (or screen-shared) without exposing every account at once.
+function BankTab() {
+  const [accounts, setAccounts] = useState<BankAccount[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState<Set<number>>(new Set());
+
+  const load = () => {
+    setLoading(true);
+    setError(null);
+    fetchBankAccounts()
+      .then(setAccounts)
+      .catch(err => setError(err instanceof Error ? err.message : 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const toggle = (i: number) => {
+    setRevealed(prev => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  };
+
+  if (loading) return <p className="meta mt-4">Loading bank details…</p>;
+  if (error) return (
+    <Card className="mt-4">
+      <p className="text-danger text-sm mb-3">{error}</p>
+      <Btn size="sm" variant="ghost" onClick={load}>Try again</Btn>
+    </Card>
+  );
+
+  return (
+    <div className="mt-4 flex flex-col gap-3">
+      <p className="text-[13px] text-ink-soft">
+        Accounts hosts submitted for reimbursement. Treat these as confidential — don’t forward
+        them by email. If a host appears twice, the newest entry is at the top.
+      </p>
+      {accounts.length === 0 ? (
+        <p className="meta">No bank details submitted yet.</p>
+      ) : (
+        accounts.map((a, i) => (
+          <Card key={`${a.submittedAt}-${i}`} className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-ink truncate">
+                {a.propertyName || 'Property not given'}
+              </p>
+              <p className="text-xs text-ink-soft mt-0.5">
+                {a.accountName}
+                {a.submittedAt && ` · added ${formatDate(a.submittedAt)}`}
+              </p>
+              <p className="text-sm text-ink mt-1 font-mono">
+                {revealed.has(i) ? a.accountNumber : '•••• •••• ••••'}
+              </p>
+            </div>
+            <div className="shrink-0">
+              <Btn size="sm" variant="ghost" onClick={() => toggle(i)}>
+                {revealed.has(i) ? 'Hide' : 'Show number'}
+              </Btn>
+            </div>
+          </Card>
+        ))
+      )}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [authed, setAuthed] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -529,6 +601,8 @@ export default function DashboardPage() {
         <HSTab />
       ) : activeTab === 'documents' ? (
         <DocumentsTab />
+      ) : activeTab === 'bank' ? (
+        <BankTab />
       ) : (
         <Card className="mt-4 text-center">
           <p className="text-3xl mb-2">🚧</p>

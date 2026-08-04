@@ -35,6 +35,10 @@ const REGISTRATION_TABS = [
 const WITHDRAWN_TAB = 'Withdrawn Properties';
 const WITHDRAWN_HEADERS = ['Registration ID', 'Property Name', 'Withdrawn At'];
 
+// Host bank accounts (written by submit-bank-details.ts). Readable only here,
+// behind the dashboard password.
+const BANK_TAB = 'Host Bank Details 2026';
+
 async function ensureTab(
   sheets: ReturnType<typeof getSheets>,
   spreadsheetId: string,
@@ -217,6 +221,26 @@ export default async (request: Request, _context: Context) => {
         });
       }
       return json({ ok: true });
+    }
+
+    if (action === 'bank-list') {
+      const data = await fetchTabs(sheets, spreadsheetId, [BANK_TAB]);
+      const rows = data[BANK_TAB] ?? [];
+      if (rows.length < 2) return json({ accounts: [] });
+      const read = rowReader(rows[0]);
+      const accounts = rows
+        .slice(1)
+        .map(r => ({
+          submittedAt: read(r, 'Submitted At'),
+          propertyName: read(r, 'Property Name'),
+          accountName: read(r, 'Account Name'),
+          // Written with a leading apostrophe to stop Sheets reformatting it.
+          accountNumber: read(r, 'Account Number').replace(/^'/, ''),
+        }))
+        .filter(a => a.accountName || a.accountNumber)
+        // Newest first — a host who resubmits should appear at the top.
+        .reverse();
+      return json({ accounts });
     }
 
     if (action === 'hs-list') {

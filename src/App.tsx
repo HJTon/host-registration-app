@@ -6,6 +6,7 @@ import ChecklistPage from './pages/ChecklistPage';
 import FeedbackPage from './pages/FeedbackPage';
 import DocumentsPage from './pages/DocumentsPage';
 import EditRegistrationPage from './pages/EditRegistrationPage';
+import BankDetailsPage from './pages/BankDetailsPage';
 import HealthSafetyLandingPage from './pages/HealthSafetyLandingPage';
 import HSFormPage from './pages/HSFormPage';
 import HSPlanPage from './pages/HSPlanPage';
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/feedback" element={<FeedbackPage />} />
           <Route path="/documents" element={<DocumentsPage />} />
           <Route path="/edit-registration" element={<EditRegistrationPage />} />
+          <Route path="/bank-details" element={<BankDetailsPage />} />
           <Route path="/health-safety" element={<HealthSafetyLandingPage />} />
           <Route path="/health-safety/form" element={<HSFormPage />} />
           <Route path="/health-safety/plan" element={<HSPlanPage />} />

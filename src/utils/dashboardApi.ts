@@ -68,6 +68,20 @@ export async function fetchHSRecord(submissionId: string): Promise<{ found: bool
   return call('hs-record', { submissionId });
 }
 
+export interface BankAccount {
+  submittedAt: string;
+  propertyName: string;
+  accountName: string;
+  accountNumber: string;
+}
+
+// Host bank accounts for reimbursements — only ever readable behind the
+// dashboard password.
+export async function fetchBankAccounts(): Promise<BankAccount[]> {
+  const data = await call<{ accounts: BankAccount[] }>('bank-list');
+  return data.accounts;
+}
+
 // Hide a property from the active list (shared across coordinators via the sheet).
 export async function withdrawHost(regId: string, propertyName: string): Promise<void> {
   await call('hs-withdraw', { regId, propertyName });

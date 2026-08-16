@@ -1,5 +1,9 @@
 import type { Context } from '@netlify/functions';
 import { google } from 'googleapis';
+import {
+  NZ_ACCOUNT_NUMBER_ERROR,
+  parseNzBankAccountNumber,
+} from '../../src/utils/bankAccount';
 
 // Host bank account details, for reimbursements.
 //
@@ -36,8 +40,11 @@ function getSheets() {
   return google.sheets({ version: 'v4', auth });
 }
 
-// Netlify functions have a hard ~10s limit; fail each Google call fast and
-// loudly rather than burning the whole budget on a hung request.
+// Keep an individual Google call from consuming the function's full execution
+// window. Seven seconds proved too aggressive for cold authentication plus a
+// Sheets request.
+const GOOGLE_CALL_TIMEOUT_MS = 20_000;
+
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
     promise,
@@ -52,8 +59,11 @@ async function ensureTab(
   spreadsheetId: string,
 ): Promise<void> {
   const spreadsheet = await withTimeout(
-    sheets.spreadsheets.get({ spreadsheetId }),
-    7000,
+    sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: 'sheets.properties.title',
+    }),
+    GOOGLE_CALL_TIMEOUT_MS,
     'spreadsheets.get',
   );
   if (spreadsheet.data.sheets?.some(s => s.properties?.title === TAB_NAME)) return;
@@ -63,7 +73,7 @@ async function ensureTab(
       spreadsheetId,
       requestBody: { requests: [{ addSheet: { properties: { title: TAB_NAME } } }] },
     }),
-    7000,
+    GOOGLE_CALL_TIMEOUT_MS,
     'addSheet',
   );
 
@@ -74,7 +84,7 @@ async function ensureTab(
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [BANK_HEADERS] },
     }),
-    7000,
+    GOOGLE_CALL_TIMEOUT_MS,
     'header update',
   );
 }
@@ -107,13 +117,22 @@ export default async (request: Request, _context: Context) => {
       return json({ error: 'Invalid body' }, 400);
     }
 
-    const accountName = (body.accountName ?? '').trim();
-    const accountNumber = (body.accountNumber ?? '').trim();
-    if (!accountName) return json({ error: 'Account name is required' }, 400);
+    const accountName = typeof body.accountName === 'string' ? body.accountName.trim() : '';
+    if (!accountName) {
+      return json({
+        error: 'Please enter the name on the account.',
+        code: 'INVALID_ACCOUNT_NAME',
+        field: 'accountName',
+      }, 400);
+    }
 
-    const digits = accountNumber.replace(/\D/g, '');
-    if (digits.length !== 15 && digits.length !== 16) {
-      return json({ error: 'Account number must be a full NZ account number' }, 400);
+    const accountNumber = parseNzBankAccountNumber(body.accountNumber);
+    if (!accountNumber) {
+      return json({
+        error: NZ_ACCOUNT_NUMBER_ERROR,
+        code: 'INVALID_ACCOUNT_NUMBER',
+        field: 'accountNumber',
+      }, 400);
     }
 
     const sheets = getSheets();
@@ -125,7 +144,7 @@ export default async (request: Request, _context: Context) => {
       accountName,
       // Leading apostrophe keeps Sheets from mangling the hyphens into a date
       // or dropping the leading zero of a suffix.
-      `'${accountNumber}`,
+      `'${accountNumber.formatted}`,
     ];
 
     await withTimeout(
@@ -136,7 +155,7 @@ export default async (request: Request, _context: Context) => {
         insertDataOption: 'INSERT_ROWS',
         requestBody: { values: [row] },
       }),
-      7000,
+      GOOGLE_CALL_TIMEOUT_MS,
       'values.append',
     );
 
@@ -145,6 +164,9 @@ export default async (request: Request, _context: Context) => {
     // Never echo the submitted values back in an error — they'd end up in logs
     // and in the browser.
     console.error('Error saving bank details:', error instanceof Error ? error.message : error);
-    return json({ error: 'Could not save your bank details. Please try again.' }, 500);
+    return json({
+      error: 'Your details look valid, but secure storage is temporarily unavailable. Nothing was saved; please try again.',
+      code: 'BANK_DETAILS_STORAGE_UNAVAILABLE',
+    }, 503);
   }
 };

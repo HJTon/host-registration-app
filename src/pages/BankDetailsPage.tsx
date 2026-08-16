@@ -1,27 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getSubmissions } from '../utils/storage';
+import {
+  formatNzBankAccountInput,
+  NZ_ACCOUNT_NUMBER_ERROR,
+  parseNzBankAccountNumber,
+} from '../utils/bankAccount';
 import { BrandHeader, Card, Btn, Field, Input } from '../components/ui';
 
 // Where hosts give us the account to reimburse them into. The details are
 // write-only from here: nothing is echoed back to the browser and nothing is
 // kept on the device, so the only place to read them is the password-gated
 // coordinator dashboard.
-
-// NZ account numbers are bank(2)-branch(4)-account(7)-suffix(2 or 3).
-const NZ_ACCOUNT_DIGITS = [15, 16];
-
-function digitsOf(value: string): string {
-  return value.replace(/\D/g, '');
-}
-
-// Group as XX-XXXX-XXXXXXX-XXX while the host types, so a mistyped digit is
-// easy to spot against the numbers on their bank statement.
-function formatAccountNumber(value: string): string {
-  const d = digitsOf(value).slice(0, 16);
-  const parts = [d.slice(0, 2), d.slice(2, 6), d.slice(6, 13), d.slice(13)];
-  return parts.filter(Boolean).join('-');
-}
 
 interface Errors {
   accountName?: string;
@@ -47,12 +37,10 @@ export default function BankDetailsPage() {
     if (!accountName.trim()) {
       next.accountName = 'Please enter the name on the account.';
     }
-    const digits = digitsOf(accountNumber);
-    if (!digits) {
+    if (!accountNumber.trim()) {
       next.accountNumber = 'Please enter your account number.';
-    } else if (!NZ_ACCOUNT_DIGITS.includes(digits.length)) {
-      next.accountNumber =
-        'That doesn’t look like a full NZ account number — it should have 15 or 16 digits, e.g. 12-3456-7890123-00.';
+    } else if (!parseNzBankAccountNumber(accountNumber)) {
+      next.accountNumber = NZ_ACCOUNT_NUMBER_ERROR;
     }
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -61,6 +49,8 @@ export default function BankDetailsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
+    const parsedAccountNumber = parseNzBankAccountNumber(accountNumber);
+    if (!parsedAccountNumber) return;
     setIsSubmitting(true);
     setSubmitError(null);
     try {
@@ -70,11 +60,18 @@ export default function BankDetailsPage() {
         body: JSON.stringify({
           propertyName: propertyName.trim(),
           accountName: accountName.trim(),
-          accountNumber: formatAccountNumber(accountNumber),
+          accountNumber: parsedAccountNumber.formatted,
         }),
       });
       if (!response.ok) {
-        const err = (await response.json().catch(() => ({}))) as { error?: string };
+        const err = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          field?: keyof Errors;
+        };
+        if (err.field) {
+          setErrors(current => ({ ...current, [err.field!]: err.error ?? 'Please check this field.' }));
+          return;
+        }
         throw new Error(err.error ?? 'Submission failed. Please try again.');
       }
       // Clear the fields as soon as they're safely stored — no reason to leave
@@ -167,7 +164,7 @@ export default function BankDetailsPage() {
               label="Account number"
               htmlFor="bank-account-number"
               error={errors.accountNumber}
-              hint="Format: 12-3456-7890123-00"
+              hint="A 2 or 3 digit suffix is fine. Spaces or hyphens are both accepted."
             >
               <Input
                 id="bank-account-number"
@@ -175,7 +172,7 @@ export default function BankDetailsPage() {
                 inputMode="numeric"
                 autoComplete="off"
                 value={accountNumber}
-                onChange={e => setAccountNumber(formatAccountNumber(e.target.value))}
+                onChange={e => setAccountNumber(formatNzBankAccountInput(e.target.value))}
                 invalid={!!errors.accountNumber}
                 placeholder="12-3456-7890123-00"
               />

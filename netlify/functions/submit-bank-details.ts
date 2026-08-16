@@ -1,4 +1,4 @@
-import type { Context } from '@netlify/functions';
+import type { Handler, HandlerResponse } from '@netlify/functions';
 import { google } from 'googleapis';
 import {
   NZ_ACCOUNT_NUMBER_ERROR,
@@ -95,16 +95,21 @@ interface SubmitBody {
   accountNumber?: string;
 }
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
+function json(body: unknown, status = 200): HandlerResponse {
+  return {
+    statusCode: status,
     headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
-  });
+    body: JSON.stringify(body),
+  };
 }
 
-export default async (request: Request, _context: Context) => {
-  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
-  if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+// Use Netlify's buffered handler contract here. It is supported across all
+// Lambda runtimes and avoids response-stream framing failures during deploys.
+export const handler: Handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+  }
+  if (event.httpMethod !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   try {
     const spreadsheetId = process.env[SPREADSHEET_ID_ENV];
@@ -112,7 +117,7 @@ export default async (request: Request, _context: Context) => {
 
     let body: SubmitBody;
     try {
-      body = (await request.json()) as SubmitBody;
+      body = JSON.parse(event.body || '{}') as SubmitBody;
     } catch {
       return json({ error: 'Invalid body' }, 400);
     }
@@ -140,7 +145,7 @@ export default async (request: Request, _context: Context) => {
 
     const row = [
       new Date().toISOString(),
-      (body.propertyName ?? '').trim(),
+      typeof body.propertyName === 'string' ? body.propertyName.trim() : '',
       accountName,
       // Leading apostrophe keeps Sheets from mangling the hyphens into a date
       // or dropping the leading zero of a suffix.

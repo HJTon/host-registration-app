@@ -1,6 +1,6 @@
 import type { FormData, SlotState } from '../types/form';
 import { getInitialFormData } from '../types/form';
-import type { HSResponse } from '../types/healthSafety';
+import type { HSResponse, HSFieldValue, HSType } from '../types/healthSafety';
 
 const DRAFT_KEY = 'host-registration-draft-2026';
 const SUBMISSIONS_KEY = 'host-submissions-2026';
@@ -120,6 +120,47 @@ export function saveHSResponse(response: HSResponse): void {
 
 export function getHSResponseById(id: string): HSResponse | null {
   return getHSResponses().find(r => r.submissionId === id) ?? null;
+}
+
+// ── Health & Safety drafts ────────────────────────────────────────────────────
+// The H&S form is long, and until now the only copy of a host's answers lived in
+// React state — so a failed submit, a dropped connection, or a closed tab threw
+// the lot away. Keep a draft per type as they go, and clear it once the plan is
+// safely on the sheet.
+
+export interface HSDraft {
+  email: string;
+  name: string;
+  propertyName: string;
+  propertyAddress: string;
+  fields: Record<string, HSFieldValue>;
+  acknowledged: boolean;
+  signatureName: string;
+}
+
+function hsDraftKey(hsType: HSType): string {
+  return `trails-hs-draft-2026-${hsType}`;
+}
+
+export function saveHSDraft(hsType: HSType, draft: HSDraft): void {
+  try {
+    localStorage.setItem(hsDraftKey(hsType), JSON.stringify(draft));
+  } catch { /* storage full / unavailable — non-fatal */ }
+}
+
+export function loadHSDraft(hsType: HSType): HSDraft | null {
+  try {
+    const raw = localStorage.getItem(hsDraftKey(hsType));
+    return raw ? (JSON.parse(raw) as HSDraft) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearHSDraft(hsType: HSType): void {
+  try {
+    localStorage.removeItem(hsDraftKey(hsType));
+  } catch { /* non-fatal */ }
 }
 
 // Find a host's existing H&S plan for a given registration (so we can offer

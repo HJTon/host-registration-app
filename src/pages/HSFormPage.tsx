@@ -2,7 +2,15 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { HSType, HSResponse, HSFieldValue, HazardSection, CheckboxOnlySection } from '../types/healthSafety';
 import { getHSSchema, getInitialHSFields, HS_TYPE_LABELS } from '../types/healthSafety';
-import { getSubmissionById, saveHSResponse, getHSResponseById, generateSubmissionId } from '../utils/storage';
+import {
+  getSubmissionById,
+  saveHSResponse,
+  getHSResponseById,
+  generateSubmissionId,
+  saveHSDraft,
+  loadHSDraft,
+  clearHSDraft,
+} from '../utils/storage';
 import { BrandHeader, Card, Btn, Divider, Field, Input, Textarea } from '../components/ui';
 import { getCategoryTheme } from '../utils/category';
 
@@ -90,19 +98,24 @@ export default function HSFormPage() {
   const theme = getCategoryTheme(registration?.propertyType ?? hsType);
 
   // ── State ──────────────────────────────────────────────────────────────────
-  const [email, setEmail] = useState(existing?.email ?? registration?.formData.email ?? '');
-  const [name, setName] = useState(existing?.name ?? registration?.formData.hostNames ?? '');
+  // An unsubmitted draft from an earlier attempt on this device. It outranks the
+  // registration defaults — it's the host's own, newer typing — but never an
+  // `existing` plan, which is already saved on the sheet.
+  const draft = useMemo(() => (editId ? null : loadHSDraft(hsType)), [editId, hsType]);
+
+  const [email, setEmail] = useState(existing?.email ?? draft?.email ?? registration?.formData.email ?? '');
+  const [name, setName] = useState(existing?.name ?? draft?.name ?? registration?.formData.hostNames ?? '');
   const [propertyName, setPropertyName] = useState(
-    existing?.propertyName ?? registration?.propertyName ?? '',
+    existing?.propertyName ?? draft?.propertyName ?? registration?.propertyName ?? '',
   );
   const [propertyAddress, setPropertyAddress] = useState(
-    existing?.propertyAddress ?? registration?.formData.address ?? '',
+    existing?.propertyAddress ?? draft?.propertyAddress ?? registration?.formData.address ?? '',
   );
   const [fields, setFields] = useState<Record<string, HSFieldValue>>(
-    existing?.fields ?? getInitialHSFields(hsType),
+    existing?.fields ?? draft?.fields ?? getInitialHSFields(hsType),
   );
-  const [acknowledged, setAcknowledged] = useState(existing?.acknowledged ?? false);
-  const [signatureName, setSignatureName] = useState(existing?.signatureName ?? '');
+  const [acknowledged, setAcknowledged] = useState(existing?.acknowledged ?? draft?.acknowledged ?? false);
+  const [signatureName, setSignatureName] = useState(existing?.signatureName ?? draft?.signatureName ?? '');
 
   const [prefilling, setPrefilling] = useState(false);
   const [prefillNote, setPrefillNote] = useState<string | null>(null);
@@ -118,7 +131,8 @@ export default function HSFormPage() {
   useEffect(() => {
     // Only prefill new (not-yet-saved) plans where we know the host's email.
     const lookupEmail = (registration?.formData.email ?? '').trim();
-    if (existing || !lookupEmail) return;
+    // A draft means answers are already in progress — last year's would overwrite them.
+    if (existing || draft || !lookupEmail) return;
     let cancelled = false;
     setPrefilling(true);
     fetchPrefill(hsType, lookupEmail)
@@ -129,7 +143,7 @@ export default function HSFormPage() {
       })
       .finally(() => { if (!cancelled) setPrefilling(false); });
     return () => { cancelled = true; };
-  }, [existing, registration, hsType]);
+  }, [existing, draft, registration, hsType]);
 
   const handleAltLookup = async () => {
     const lookup = altEmail.trim();
@@ -146,6 +160,37 @@ export default function HSFormPage() {
       setAltError(`No ${HS_TYPE_LABELS[hsType]} answers found for ${lookup} last year.`);
     }
   };
+
+  // Anything actually filled in? Used to avoid saving an untouched form as a
+  // draft, which would suppress the "pull last year's answers" prefill.
+  const hasAnswers = useMemo(
+    () =>
+      Object.values(fields).some(v =>
+        Array.isArray(v) ? v.length > 0 : String(v).trim() !== '',
+      ),
+    [fields],
+  );
+
+  // Persist a draft as they work through the form. The plan is long, and until
+  // now the only copy lived in React state — a failed submit or a closed tab
+  // cost the host the lot, which is exactly what makes a submit outage so
+  // expensive for them.
+  useEffect(() => {
+    if (existing) return;
+    if (!hasAnswers && !signatureName.trim()) return;
+    saveHSDraft(hsType, {
+      email,
+      name,
+      propertyName,
+      propertyAddress,
+      fields,
+      acknowledged,
+      signatureName,
+    });
+  }, [
+    existing, hsType, hasAnswers,
+    email, name, propertyName, propertyAddress, fields, acknowledged, signatureName,
+  ]);
 
   // ── Field updates ────────────────────────────────────────────────────────────
   const setField = (id: string, value: HSFieldValue) =>
@@ -203,9 +248,16 @@ export default function HSFormPage() {
       });
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(err.error ?? 'Submission failed. Please try again.');
+        // A server that fell over before it could answer leaves no message of its
+        // own. Show the status code rather than a bare "failed" — it's the
+        // difference between a host's screenshot being diagnosable or not.
+        throw new Error(
+          err.error ??
+            `We couldn't save your plan (error ${res.status}). Your answers are saved on this device — please try again shortly.`,
+        );
       }
       saveHSResponse(response);
+      clearHSDraft(hsType);
       navigate(`/health-safety/plan?id=${encodeURIComponent(submissionId)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');

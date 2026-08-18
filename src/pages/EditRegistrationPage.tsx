@@ -70,7 +70,7 @@ export default function EditRegistrationPage() {
               </a>
             </p>
             <p>
-              <a href="tel:+64215661850" className="text-brand-green-deep hover:underline">
+              <a href="tel:+6421566185" className="text-brand-green-deep hover:underline">
                 021 566 185
               </a>
             </p>

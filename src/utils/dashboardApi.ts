@@ -60,7 +60,7 @@ export async function dashboardLogin(password: string): Promise<void> {
   setDashboardKey(password);
 }
 
-export async function fetchHSList(): Promise<{ hosts: DashboardHost[]; counts: HSCounts }> {
+export async function fetchHSList(): Promise<{ hosts: DashboardHost[]; counts: HSCounts; readAt?: string }> {
   return call('hs-list');
 }
 

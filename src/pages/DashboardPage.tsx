@@ -62,12 +62,17 @@ function HSTab() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [showHidden, setShowHidden] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [readAt, setReadAt] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
     setError(null);
     fetchHSList()
-      .then(data => { setHosts(data.hosts); setCounts(data.counts); })
+      .then(data => {
+        setHosts(data.hosts);
+        setCounts(data.counts);
+        setReadAt(data.readAt ?? new Date().toISOString());
+      })
       .catch(err => setError(err instanceof Error ? err.message : 'Failed to load'))
       .finally(() => setLoading(false));
   };
@@ -160,6 +165,22 @@ function HSTab() {
           </select>
         </label>
         <span className="ml-auto self-center meta">{filtered.length} shown</span>
+      </div>
+
+      {/* Where this data comes from. Coordinators have asked whether the list
+          can go stale; it cannot — every load reads the Host App data sheet
+          directly, so what is here is what is on the sheet right now. */}
+      <div className="flex flex-wrap items-center gap-2 mb-4 meta">
+        <span>
+          Read live from the Host App data sheet
+          {readAt && ` · ${new Date(readAt).toLocaleTimeString('en-NZ', { hour: 'numeric', minute: '2-digit' })}`}
+        </span>
+        <button
+          onClick={load}
+          className="underline underline-offset-2 hover:text-brand-green-deep transition-colors"
+        >
+          Refresh
+        </button>
       </div>
 
       {/* Host rows */}

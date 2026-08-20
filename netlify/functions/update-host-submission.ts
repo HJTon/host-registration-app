@@ -68,7 +68,7 @@ const BACKYARD_HEADERS = [
   'Thu 5 Nov 10am-1pm', 'Thu 5 Nov 1pm-4pm', 'Fri 6 Nov 10am-1pm', 'Fri 6 Nov 1pm-4pm',
   'Additional Hours', 'Volunteer Note', 'Features', 'Features Notes', 'Brief Description',
   'Full Description', 'Facilities', 'Access Limitations', 'Parking Info', 'Parking Photo Links',
-  'Kid Activities', 'Talk Topic', 'Advertiser', 'Photo Links',
+  'Kid Activities', 'Talk Topic', 'Advertiser', 'Photo Links', 'Full Address',
 ];
 
 const TOUR_HEADERS = (sizeLabel: string, yearsLabel: string, notesLabel: string, briefLabel: string) => [
@@ -76,7 +76,7 @@ const TOUR_HEADERS = (sizeLabel: string, yearsLabel: string, notesLabel: string,
   'Tour Locations', 'Tour Duration', 'Tour Capacity', 'Tour Price',
   'Second Talk', 'Second Talk Details', 'Tour Availability', 'Tour Dates',
   'Sustainability Features', briefLabel, 'Full Description',
-  'Facilities', 'Access Limitations', 'Parking Info', 'Parking Photo Links', 'Advertiser', 'Photo Links',
+  'Facilities', 'Access Limitations', 'Parking Info', 'Parking Photo Links', 'Advertiser', 'Photo Links', 'Full Address',
 ];
 
 function getHeaders(propertyType: string): string[] {
@@ -150,6 +150,14 @@ interface UpdateBody {
   photoUrls: string[];
 }
 
+// Mirrors submit-host-form.ts — the booklet wants the address as one string.
+function fullAddress(body: Pick<UpdateBody, 'address' | 'suburb' | 'townCity'>): string {
+  return [body.address, body.suburb, body.townCity]
+    .map(part => (part ?? '').trim())
+    .filter(Boolean)
+    .join(', ');
+}
+
 function buildRow(body: UpdateBody, originalSubmittedAt: string): string[] {
   const commonValues = [
     originalSubmittedAt, // preserve original submission date
@@ -188,6 +196,7 @@ function buildRow(body: UpdateBody, originalSubmittedAt: string): string[] {
       (body.parkingPhotoUrls ?? []).join(', '),
       body.advertiser || '',
       (body.photoUrls ?? []).join(', '),
+      fullAddress(body),
     ];
   }
 
@@ -211,6 +220,7 @@ function buildRow(body: UpdateBody, originalSubmittedAt: string): string[] {
     body.talkTopic || '',
     body.advertiser || '',
     (body.photoUrls ?? []).join(', '),
+    fullAddress(body),
   ];
 }
 

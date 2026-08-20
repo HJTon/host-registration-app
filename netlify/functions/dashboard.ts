@@ -276,7 +276,15 @@ export default async (request: Request, _context: Context) => {
       }
 
       // Build the roster from registration rows.
-      const hosts: HostRow[] = [];
+      //
+      // A registration can appear twice: a host who cannot get back to the
+      // device they registered on sometimes fills the form in again from
+      // scratch instead of editing, which appends a second row. Rows sharing a
+      // Submission ID are the same property for certain, so the later one wins
+      // — rows are only ever appended, so later is newer. A row with no id
+      // keeps its own slot, since there is nothing safe to match it on.
+      const roster = new Map<string, HostRow>();
+      let unidentifiedRows = 0;
       for (const tab of REGISTRATION_TABS) {
         const rows = data[tab] ?? [];
         if (rows.length < 2) continue;
@@ -288,7 +296,8 @@ export default async (request: Request, _context: Context) => {
           if (!regId && !email && !propertyType) continue; // skip blank/cleared rows
           const hsType = hsTypeForProperty(propertyType);
           const hs = byRegId.get(regId) ?? byEmailType.get(`${email.toLowerCase()}|${hsType}`);
-          hosts.push({
+          const key = regId || `row:${tab}:${unidentifiedRows++}`;
+          roster.set(key, {
             regId,
             email,
             propertyName: read(r, 'Property Name'),
@@ -304,6 +313,7 @@ export default async (request: Request, _context: Context) => {
           });
         }
       }
+      const hosts: HostRow[] = [...roster.values()];
 
       // Counts cover active (non-withdrawn) properties only.
       const active = hosts.filter(h => !h.withdrawn);
@@ -324,7 +334,7 @@ export default async (request: Request, _context: Context) => {
         byType,
       };
 
-      return json({ hosts, counts });
+      return json({ hosts, counts, readAt: new Date().toISOString() });
     }
 
     return json({ error: 'Unknown action' }, 400);

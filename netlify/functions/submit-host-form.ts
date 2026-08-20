@@ -76,6 +76,7 @@ const BACKYARD_HEADERS = [
   'Talk Topic',
   'Advertiser',
   'Photo Links',
+  'Full Address',
 ];
 
 const BUILD_HEADERS = [
@@ -100,6 +101,7 @@ const BUILD_HEADERS = [
   'Parking Photo Links',
   'Advertiser',
   'Photo Links',
+  'Full Address',
 ];
 
 const FARM_HEADERS = [
@@ -124,6 +126,7 @@ const FARM_HEADERS = [
   'Parking Photo Links',
   'Advertiser',
   'Photo Links',
+  'Full Address',
 ];
 
 const LIFESTYLE_HEADERS = [
@@ -148,6 +151,7 @@ const LIFESTYLE_HEADERS = [
   'Parking Photo Links',
   'Advertiser',
   'Photo Links',
+  'Full Address',
 ];
 
 function getHeaders(propertyType: string): string[] {
@@ -200,6 +204,36 @@ async function ensureTab(
   });
 }
 
+// Columns are only ever appended to the right of a header set, never inserted,
+// so a tab created before a new column existed has a header row that is short
+// rather than wrong. Top it up so the extra columns are labelled.
+//
+// This runs after the registration row is safely appended, and swallows its own
+// failures: an unlabelled column is a nuisance, a lost registration is not.
+async function topUpHeaderRow(
+  sheets: ReturnType<typeof getSheets>,
+  spreadsheetId: string,
+  tabName: string,
+  headers: string[],
+): Promise<void> {
+  try {
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `'${tabName}'!1:1`,
+    });
+    const current = (res.data.values?.[0] ?? []) as string[];
+    if (current.length >= headers.length) return;
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `'${tabName}'!A1`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [headers] },
+    });
+  } catch (error) {
+    console.error(`Could not refresh the header row for ${tabName}:`, error);
+  }
+}
+
 interface SubmitBody {
   submissionId: string;
   email: string;
@@ -241,6 +275,17 @@ interface SubmitBody {
   parkingPhotoUrls: string[];
   advertiser: string;
   photoUrls: string[];
+}
+
+// The programme booklet prints an address as one string — "12 Elm Street,
+// Moturoa" — so the team was stitching the parts back together by hand for
+// every entry. The parts keep their own columns for sorting and filtering;
+// this one is the ready-made version.
+function fullAddress(body: Pick<SubmitBody, 'address' | 'suburb' | 'townCity'>): string {
+  return [body.address, body.suburb, body.townCity]
+    .map(part => (part ?? '').trim())
+    .filter(Boolean)
+    .join(', ');
 }
 
 function slotValue(timeSlots: Record<string, string | boolean>, key: string): string {
@@ -292,6 +337,7 @@ function buildRow(body: SubmitBody, propertyType: string): string[] {
       (body.parkingPhotoUrls ?? []).join(', '),
       body.advertiser || '',
       (body.photoUrls ?? []).join(', '),
+      fullAddress(body),
     ];
   }
 
@@ -316,6 +362,7 @@ function buildRow(body: SubmitBody, propertyType: string): string[] {
     body.talkTopic || '',
     body.advertiser || '',
     (body.photoUrls ?? []).join(', '),
+    fullAddress(body),
   ];
 }
 
@@ -363,6 +410,8 @@ export default async (request: Request, _context: Context) => {
       insertDataOption: 'INSERT_ROWS',
       requestBody: { values: [row] },
     });
+
+    await topUpHeaderRow(sheets, spreadsheetId, tabName, headers);
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

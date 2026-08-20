@@ -89,6 +89,29 @@ export function getSubmissionById(id: string): SubmittedRegistration | null {
   return getSubmissions().find(s => s.id === id) ?? null;
 }
 
+// ── Edit window ──────────────────────────────────────────────────────────────
+//
+// Hosts can correct their own registration for a fortnight after submitting.
+// After that the team is collating the programme and proofing entries, so a
+// late change has to go through them rather than silently altering a listing
+// that is already in the book.
+
+export const EDIT_WINDOW_DAYS = 14;
+export const REGISTRATION_CHANGES_EMAIL = 'sbt@sustainabletaranaki.org.nz';
+
+export function editDeadline(submission: SubmittedRegistration): Date {
+  const submitted = new Date(submission.submittedAt).getTime();
+  return new Date(submitted + EDIT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+}
+
+// A submission with an unreadable date stays editable — locking a host out on
+// bad stored data would be worse than letting one late edit through.
+export function isEditable(submission: SubmittedRegistration): boolean {
+  const deadline = editDeadline(submission).getTime();
+  if (Number.isNaN(deadline)) return true;
+  return Date.now() <= deadline;
+}
+
 export function generateSubmissionId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }

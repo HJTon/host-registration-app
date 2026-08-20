@@ -15,11 +15,20 @@ interface ChecklistSection {
 
 const SECTIONS: ChecklistSection[] = [
   {
-    title: 'Before the event',
+    title: 'Paperwork',
     items: [
       { id: 'submit-registration', label: 'Submit your registration' },
       { id: 'send-photos', label: 'Upload your photos to the host portal (or email to Suzy)' },
       { id: 'confirm-hours', label: 'Confirm your open hours with the team' },
+      { id: 'proof-entry', label: 'Proof your entry in the Trails programme' },
+      { id: 'complete-hs', label: 'Complete the health and safety questionnaire' },
+      { id: 'send-bank-details', label: 'Send in your bank account name and number, if applicable' },
+      { id: 'humanitix-app', label: 'Download the Humanitix for Hosts app so you can check registrations to your event' },
+    ],
+  },
+  {
+    title: 'Before the event',
+    items: [
       { id: 'read-info-pack', label: 'Read the host information pack when it arrives' },
       { id: 'walk-property', label: 'Walk your property and fix any trip hazards, low branches, or unsafe areas' },
       { id: 'plan-visitor-flow', label: 'Plan how visitors will move through the property and where they\'ll park' },

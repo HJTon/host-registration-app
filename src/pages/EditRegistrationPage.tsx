@@ -1,5 +1,11 @@
 import { useNavigate } from 'react-router-dom';
-import { getSubmissions } from '../utils/storage';
+import {
+  getSubmissions,
+  isEditable,
+  editDeadline,
+  EDIT_WINDOW_DAYS,
+  REGISTRATION_CHANGES_EMAIL,
+} from '../utils/storage';
 import { BrandHeader, Card, CategoryChip } from '../components/ui';
 import { getCategoryTheme } from '../utils/category';
 
@@ -79,17 +85,23 @@ export default function EditRegistrationPage() {
       ) : (
         <div className="flex flex-col gap-3">
           <p className="text-sm text-ink-soft mb-1">
-            Select a property to update its details.
+            Select a property to update its details. Registrations can be edited for{' '}
+            {EDIT_WINDOW_DAYS} days after they are submitted — after that, please email
+            any changes to{' '}
+            <a
+              href={`mailto:${REGISTRATION_CHANGES_EMAIL}`}
+              className="text-brand-green-deep hover:underline"
+            >
+              {REGISTRATION_CHANGES_EMAIL}
+            </a>
+            .
           </p>
           {submissions.map(sub => {
             const theme = getCategoryTheme(sub.propertyType);
-            return (
-              <button
-                key={sub.id}
-                onClick={() => navigate(`/form?edit=${encodeURIComponent(sub.id)}`)}
-                className="text-left bg-paper border border-line rounded-[14px] p-4 flex items-center gap-4 shadow-card hover:-translate-y-[1px] transition-all active:scale-[0.99]"
-                style={{ borderLeft: `4px solid ${theme.accent}` }}
-              >
+            const editable = isEditable(sub);
+
+            const details = (
+              <>
                 <span className="text-3xl shrink-0">
                   {PROPERTY_TYPE_ICONS[sub.propertyType] ?? '🏠'}
                 </span>
@@ -105,6 +117,47 @@ export default function EditRegistrationPage() {
                     {' · '}Submitted {formatDate(sub.submittedAt)}
                   </p>
                 </div>
+              </>
+            );
+
+            if (!editable) {
+              return (
+                <div
+                  key={sub.id}
+                  className="text-left bg-paper border border-line rounded-[14px] p-4 shadow-card opacity-90"
+                  style={{ borderLeft: `4px solid ${theme.accent}` }}
+                >
+                  <div className="flex items-center gap-4">{details}</div>
+                  <div className="mt-3 pt-3 border-t border-line text-xs text-ink-soft leading-relaxed">
+                    <p className="font-semibold text-brand-green-ink mb-0.5">
+                      Editing closed on {formatDate(editDeadline(sub).toISOString())}
+                    </p>
+                    <p>
+                      The {EDIT_WINDOW_DAYS}-day editing window for this registration has
+                      passed. Please email any changes to{' '}
+                      <a
+                        href={`mailto:${REGISTRATION_CHANGES_EMAIL}?subject=${encodeURIComponent(
+                          `Registration change — ${sub.propertyName || 'my property'}`,
+                        )}`}
+                        className="text-brand-green-deep hover:underline"
+                      >
+                        {REGISTRATION_CHANGES_EMAIL}
+                      </a>{' '}
+                      and the team will update it for you.
+                    </p>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <button
+                key={sub.id}
+                onClick={() => navigate(`/form?edit=${encodeURIComponent(sub.id)}`)}
+                className="text-left bg-paper border border-line rounded-[14px] p-4 flex items-center gap-4 shadow-card hover:-translate-y-[1px] transition-all active:scale-[0.99]"
+                style={{ borderLeft: `4px solid ${theme.accent}` }}
+              >
+                {details}
                 <svg className="w-5 h-5 shrink-0 text-ink-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 18l6-6-6-6" />
                 </svg>

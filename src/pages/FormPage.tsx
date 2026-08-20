@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { FormData, TimeSlotKey, SlotState } from '../types/form';
 import { getInitialFormData, isTourType } from '../types/form';
-import { saveDraft, loadDraft, clearDraft, generateSubmissionId, saveSubmission, getSubmissionById } from '../utils/storage';
+import { saveDraft, loadDraft, clearDraft, generateSubmissionId, saveSubmission, getSubmissionById, isEditable } from '../utils/storage';
 import { validateStep } from '../utils/validation';
 import StepIndicator from '../components/StepIndicator';
 import FormNavigation from '../components/FormNavigation';
@@ -68,6 +68,15 @@ export default function FormPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
+
+  // The edit window closes a fortnight after submitting (see storage.ts). The
+  // listing page already hides those, but a bookmarked ?edit= link would still
+  // open the form, so turn it away here too.
+  useEffect(() => {
+    if (!editId) return;
+    const saved = getSubmissionById(editId);
+    if (saved && !isEditable(saved)) navigate('/edit-registration', { replace: true });
+  }, [editId, navigate]);
 
   // Merge loaded draft over initial data so new fields always have defaults
   const [formData, setFormData] = useState<FormData>(() => {
@@ -194,11 +203,14 @@ export default function FormPage() {
 
       // Persist submission to localStorage so it can be edited later from the same device
       const { photos: _p, parkingPhotos: _pp, ...draftData } = { ...formData, submissionId };
+      // Editing must not restart the clock — an edited registration keeps the
+      // date it was first submitted, so its window still closes on time.
+      const previouslySubmittedAt = editId ? getSubmissionById(editId)?.submittedAt : undefined;
       saveSubmission({
         id: submissionId,
         propertyType: formData.propertyType,
         propertyName: formData.propertyName,
-        submittedAt: new Date().toISOString(),
+        submittedAt: previouslySubmittedAt ?? new Date().toISOString(),
         formData: draftData,
       });
 

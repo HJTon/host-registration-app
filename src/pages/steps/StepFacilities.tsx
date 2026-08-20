@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
 import type { FormData } from '../../types/form';
+import { getPropertyCategory } from '../../types/form';
 import type { ChangeHandler } from '../FormPage';
 
 interface Props {
@@ -16,6 +17,18 @@ const FACILITIES_OPTIONS = [
   { value: 'refreshments', label: 'Refreshments available' },
   { value: 'bike-parking', label: 'Place to lock or safely leave bikes' },
 ];
+
+// Backyards (and community/school gardens) often sell seedlings on the day;
+// the tour properties do not, so this option is scoped to that category.
+const BACKYARD_ONLY_FACILITIES = [
+  { value: 'seedlings', label: 'Seedlings for sale' },
+];
+
+function facilitiesOptionsFor(propertyType: string) {
+  return getPropertyCategory(propertyType) === 'backyard'
+    ? [...FACILITIES_OPTIONS, ...BACKYARD_ONLY_FACILITIES]
+    : FACILITIES_OPTIONS;
+}
 
 const ACCESS_OPTIONS = [
   { value: 'uneven-terrain', label: 'Uneven or rough terrain' },
@@ -97,7 +110,7 @@ export default function StepFacilities({ data, errors: _errors, onChange }: Prop
           Facilities available <span className="text-ink-soft font-normal">(tick all that apply)</span>
         </p>
         <CheckboxList
-          options={FACILITIES_OPTIONS}
+          options={facilitiesOptionsFor(data.propertyType)}
           selected={data.facilities}
           onChange={values => onChange('facilities', values)}
         />

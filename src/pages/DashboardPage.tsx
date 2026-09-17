@@ -9,7 +9,7 @@ import {
   DashboardAuthError, type DashboardHost, type HSCounts, type BankAccount,
 } from '../utils/dashboardApi';
 import {
-  listDocuments, uploadDocument, deleteDocument, type HostDocument, type DocKind,
+  listDocuments, uploadDocument, deleteDocument, AUDIENCE_LABELS, type HostDocument, type DocKind, type DocAudience,
 } from '../utils/documentsApi';
 import { BrandHeader, Card, Btn, Divider, Field, Input, CategoryChip } from '../components/ui';
 
@@ -247,7 +247,8 @@ function DocumentsTab() {
 
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
-  const [kind, setKind] = useState<DocKind>('proof');
+  const [kind, setKind] = useState<DocKind>('info');
+  const [audience, setAudience] = useState<DocAudience>('all');
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -278,6 +279,11 @@ function DocumentsTab() {
     }
     setFile(f);
     if (f && !title.trim()) setTitle(f.name.replace(/\.pdf$/i, ''));
+    // Follow the host pack naming convention ("BKY …", "B&F …") when present.
+    if (f) {
+      const n = f.name.trim().toUpperCase();
+      setAudience(/^BKY\b/.test(n) ? 'bky' : /^B\s*&\s*F\b/.test(n) ? 'bf' : 'all');
+    }
   };
 
   const handleUpload = async (e: FormEvent) => {
@@ -287,7 +293,7 @@ function DocumentsTab() {
     setProgress(0);
     setUploadError(null);
     try {
-      await uploadDocument(file, title.trim() || file.name, kind, f => setProgress(f));
+      await uploadDocument(file, title.trim() || file.name, kind, audience, f => setProgress(f));
       setFile(null);
       setTitle('');
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -320,7 +326,7 @@ function DocumentsTab() {
       <Card>
         <Divider label="Add a document" className="mb-4" />
         <p className="text-[13px] text-ink-soft mb-4">
-          Upload a PDF (info pack, guidelines, map, etc.). It appears straight away for every host on the
+          Upload a PDF (info pack, guidelines, map, etc.). Information documents appear straight away for the chosen hosts on the
           <span className="font-semibold"> Host documents</span> page. Large files are fine — they upload
           directly to Drive.
         </p>
@@ -329,8 +335,8 @@ function DocumentsTab() {
             <legend className="text-[13px] font-semibold text-ink mb-2">Document type</legend>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {([
-                { id: 'proof', label: 'Proof to check', desc: 'Hosts can suggest changes' },
-                { id: 'info', label: 'Information', desc: 'View / download only' },
+                { id: 'info', label: 'Information', desc: 'Shown to hosts — view / download' },
+                { id: 'proof', label: 'Proof', desc: 'Not shown to hosts (proof round is over)' },
               ] as const).map(opt => {
                 const selected = kind === opt.id;
                 return (
@@ -350,6 +356,26 @@ function DocumentsTab() {
                   </button>
                 );
               })}
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend className="text-[13px] font-semibold text-ink mb-2">Which hosts is it for?</legend>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {(['all', 'bky', 'bf'] as const).map(id => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setAudience(id)}
+                  className={[
+                    'text-left px-3 py-2 rounded-[10px] border text-sm font-semibold transition-colors',
+                    audience === id
+                      ? 'border-brand-green bg-brand-green-soft text-brand-green-deep'
+                      : 'border-line bg-paper text-ink-soft hover:border-brand-green/40',
+                  ].join(' ')}
+                >
+                  {AUDIENCE_LABELS[id]}
+                </button>
+              ))}
             </div>
           </fieldset>
           <Field label="Title" htmlFor="doc-title" hint="Shown to hosts as the document name.">
@@ -414,6 +440,7 @@ function DocumentsTab() {
                     ) : (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-cream text-brand-green-ink border border-line">Info</span>
                     )}
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-paper text-ink-soft border border-line">{AUDIENCE_LABELS[doc.audience]}</span>
                   </div>
                   <p className="text-xs text-ink-soft mt-0.5">
                     {doc.uploadedAt && `Added ${formatDate(doc.uploadedAt)}`}

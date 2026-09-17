@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BrandHeader, Card, Divider, Btn } from '../components/ui';
-import { listDocuments, type HostDocument } from '../utils/documentsApi';
-import ProofChangeModal from '../components/ProofChangeModal';
+import { listDocuments, AUDIENCE_LABELS, type DocAudience, type HostDocument } from '../utils/documentsApi';
 
 interface Deadline {
   date: string;
@@ -38,7 +37,6 @@ export default function DocumentsPage() {
   const [docs, setDocs] = useState<HostDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
-  const [suggestFor, setSuggestFor] = useState<HostDocument | null>(null);
 
   useEffect(() => {
     listDocuments()
@@ -47,10 +45,14 @@ export default function DocumentsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const proofs = docs.filter(d => d.kind === 'proof');
+  // The proof round is over, so hosts only see information documents. Proofs
+  // stay in Drive and on the coordinator dashboard.
   const infos = docs.filter(d => d.kind === 'info');
+  const groups = (['all', 'bky', 'bf'] as DocAudience[])
+    .map(audience => ({ audience, docs: infos.filter(d => d.audience === audience) }))
+    .filter(g => g.docs.length > 0);
 
-  const docRow = (doc: HostDocument, allowSuggest: boolean) => (
+  const docRow = (doc: HostDocument) => (
     <div key={doc.id} className="rounded-[12px] border border-line bg-paper px-3.5 py-3">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex-1 min-w-0 flex items-start gap-2.5">
@@ -72,17 +74,6 @@ export default function DocumentsPage() {
           </a>
         </div>
       </div>
-      {allowSuggest && (
-        <div className="mt-2 pt-2 border-t border-line/70">
-          <button
-            type="button"
-            onClick={() => setSuggestFor(doc)}
-            className="text-[13px] font-semibold text-brand-green-deep hover:underline"
-          >
-            ✎ Suggest a change to this proof
-          </button>
-        </div>
-      )}
     </div>
   );
 
@@ -102,26 +93,21 @@ export default function DocumentsPage() {
         <Card className="mb-4"><p className="meta">Loading documents…</p></Card>
       ) : (
         <>
-          {/* Proofs — please check and suggest changes */}
-          {proofs.length > 0 && (
-            <Card className="mb-4">
-              <Divider label="Proofs to check" sublabel="Tirohia" className="mb-2" />
-              <p className="text-[13px] text-ink-soft mb-4">
-                Please check that your details are correct on these proofs. If anything needs changing, tap
-                <span className="font-semibold"> Suggest a change</span> below it.
-              </p>
-              <div className="flex flex-col gap-2.5">
-                {proofs.map(doc => docRow(doc, true))}
-              </div>
-            </Card>
-          )}
-
-          {/* General information documents — view / download only */}
+          {/* Host pack — grouped by which hosts each document is for */}
           <Card className="mb-4">
             <Divider label="Documents & resources" sublabel="Pukapuka" className="mb-4" />
-            {infos.length > 0 ? (
-              <div className="flex flex-col gap-2.5">
-                {infos.map(doc => docRow(doc, false))}
+            {groups.length > 0 ? (
+              <div className="flex flex-col gap-5">
+                {groups.map(group => (
+                  <div key={group.audience}>
+                    <h2 className="text-[15px] font-semibold text-brand-green-deep mb-2">
+                      {group.audience === 'all' ? 'For all hosts' : `For ${AUDIENCE_LABELS[group.audience]} hosts`}
+                    </h2>
+                    <div className="flex flex-col gap-2.5">
+                      {group.docs.map(docRow)}
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
               <p className="text-[13px] text-ink-soft">
@@ -147,10 +133,6 @@ export default function DocumentsPage() {
           ))}
         </div>
       </Card>
-
-      {suggestFor && (
-        <ProofChangeModal documentTitle={suggestFor.title} onClose={() => setSuggestFor(null)} />
-      )}
     </div>
   );
 }

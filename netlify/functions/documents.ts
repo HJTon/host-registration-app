@@ -113,11 +113,29 @@ async function resolveDocsFolderId(drive: Drive): Promise<string | null> {
 
 type DocKind = 'proof' | 'info';
 
+// Which hosts a document is for. The coordinator's host pack files are named
+// with a prefix — "BKY …" (Backyards), "B&F …" (Builds, Farms & Lifestyle
+// Blocks), "ALL …" — so an explicit choice made at upload wins, and otherwise
+// the filename prefix decides. No prefix means every host.
+type DocAudience = 'all' | 'bky' | 'bf';
+
+function normaliseAudience(value: unknown): DocAudience | null {
+  return value === 'all' || value === 'bky' || value === 'bf' ? value : null;
+}
+
+function audienceFromName(name: string): DocAudience {
+  const n = name.trim().toUpperCase();
+  if (/^BKY\b/.test(n)) return 'bky';
+  if (/^B\s*&\s*F\b/.test(n)) return 'bf';
+  return 'all';
+}
+
 interface DocItem {
   id: string;
   title: string;
   filename: string;
   kind: DocKind;
+  audience: DocAudience;
   webViewLink: string;
   downloadLink: string;
   sizeBytes: number;
@@ -135,6 +153,7 @@ export default async (request: Request, _context: Context) => {
     title?: string;
     size?: number;
     kind?: string;
+    audience?: string;
     id?: string;
     uploadUrl?: string;
     chunk?: string;
@@ -212,6 +231,7 @@ export default async (request: Request, _context: Context) => {
         // Files uploaded before document types existed are treated as proofs,
         // which keeps the suggest-a-change option available for them.
         kind: f.appProperties?.docKind === 'info' ? 'info' : 'proof',
+        audience: normaliseAudience(f.appProperties?.audience) ?? audienceFromName(f.name || ''),
         webViewLink: f.webViewLink || `https://drive.google.com/file/d/${f.id}/view`,
         downloadLink: `https://drive.google.com/uc?export=download&id=${f.id}`,
         sizeBytes: f.size ? Number(f.size) : 0,
@@ -223,7 +243,7 @@ export default async (request: Request, _context: Context) => {
     // Start a resumable upload session and hand the URL to the browser, which
     // PUTs the file bytes straight to Drive — bypassing Netlify's size limit.
     if (action === 'create-upload-session') {
-      const { filename, title, size, kind } = body;
+      const { filename, title, size, kind, audience } = body;
       if (!filename) return json({ error: 'Missing filename' }, 400);
 
       const safeName = pdfName(filename);
@@ -232,7 +252,10 @@ export default async (request: Request, _context: Context) => {
         description: (title || safeName).trim(),
         parents: [folderId],
         mimeType: 'application/pdf',
-        appProperties: { docKind: kind === 'info' ? 'info' : 'proof' },
+        appProperties: {
+          docKind: kind === 'info' ? 'info' : 'proof',
+          audience: normaliseAudience(audience) ?? audienceFromName(safeName),
+        },
       };
 
       const accessToken = await getAccessToken();

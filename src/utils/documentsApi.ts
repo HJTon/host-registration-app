@@ -8,11 +8,21 @@ import { getDashboardKey } from './dashboardApi';
 
 export type DocKind = 'proof' | 'info';
 
+// Which hosts a document is for (see netlify/functions/documents.ts).
+export type DocAudience = 'all' | 'bky' | 'bf';
+
+export const AUDIENCE_LABELS: Record<DocAudience, string> = {
+  all: 'All hosts',
+  bky: 'Backyards',
+  bf: 'Builds, Farms & Lifestyle Blocks',
+};
+
 export interface HostDocument {
   id: string;
   title: string;
   filename: string;
   kind: DocKind;
+  audience: DocAudience;
   webViewLink: string;
   downloadLink: string;
   sizeBytes: number;
@@ -66,6 +76,7 @@ export async function uploadDocument(
   file: File,
   title: string,
   kind: DocKind,
+  audience: DocAudience,
   onProgress?: (fraction: number) => void,
 ): Promise<void> {
   const { uploadUrl } = await call<{ uploadUrl: string }>('create-upload-session', {
@@ -74,6 +85,7 @@ export async function uploadDocument(
     title: title.trim() || file.name,
     size: file.size,
     kind,
+    audience,
   });
 
   const total = file.size;
